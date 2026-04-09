@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
@@ -50,16 +51,26 @@ func runStatus() error {
 		return nil
 	}
 
+	// Build a reverse lookup: profileId → alias from local config
+	aliasLookup := make(map[string]string) // profileId → alias
+	for alias, p := range cfg.Profiles {
+		aliasLookup[p.ProfileID] = alias
+	}
+
 	rows := make([][]string, 0, len(sessions))
 	for _, s := range sessions {
+		alias := aliasLookup[s.PapID]
+		if alias == "" {
+			alias = s.PapID // fallback to raw ID
+		}
+		expiry := strings.Replace(s.Expiration, "T", " ", 1)
+		expiry = strings.TrimSuffix(expiry, "Z") + " UTC"
 		rows = append(rows, []string{
-			s.ProfileName,
-			s.EnvironmentName,
-			s.AppName,
+			alias,
 			s.Status,
-			s.ExpirationTime,
+			expiry,
 		})
 	}
-	output.PrintTable([]string{"PROFILE", "ENVIRONMENT", "APP", "STATUS", "EXPIRES"}, rows)
+	output.PrintTable([]string{"PROFILE", "STATUS", "EXPIRES"}, rows)
 	return nil
 }

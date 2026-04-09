@@ -76,7 +76,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
 	}
-	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, checkedOut.ExpirationTime))
+	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, checkedOut.Expiration))
 
 	// Determine output format
 	if outFmt == "" {

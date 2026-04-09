@@ -59,7 +59,7 @@ func runCheckin(alias string) error {
 
 	var transactionID string
 	for _, s := range sessions {
-		if s.CheckedIn == nil && s.EnvironmentID == profile.EnvironmentID {
+		if s.CheckedIn == nil && s.PapID == profile.ProfileID {
 			transactionID = s.TransactionID
 			break
 		}

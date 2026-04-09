@@ -8,17 +8,15 @@ import (
 
 // CheckedOutProfile is an active checkout returned by GET /api/access/app-access-status.
 type CheckedOutProfile struct {
-	TransactionID   string  `json:"transactionId"`
-	PapID           string  `json:"papId"`
-	ProfileName     string  `json:"profileName"`
-	AppName         string  `json:"appName"`
-	EnvironmentID   string  `json:"environmentId"`
-	EnvironmentName string  `json:"environmentName"`
-	AccessType      string  `json:"accessType"`
-	Status          string  `json:"status"`
-	StartTime       string  `json:"startTime"`
-	ExpirationTime  string  `json:"expirationTime"`
-	CheckedIn       *string `json:"checkedIn"`
+	TransactionID  string  `json:"transactionId"`
+	PapID          string  `json:"papId"` // = profileId
+	EnvironmentID  string  `json:"environmentId"`
+	AppContainerID string  `json:"appContainerId"`
+	AccessType     string  `json:"accessType"`
+	Status         string  `json:"status"`
+	CheckedOut     string  `json:"checkedOut"`
+	Expiration     string  `json:"expiration"`
+	CheckedIn      *string `json:"checkedIn"`
 }
 
 // Transaction is returned by the checkout POST.
@@ -57,40 +55,26 @@ func (c *Client) Checkout(profileID, environmentID string) (*CheckedOutProfile, 
 		return nil, nil, fmt.Errorf("checkout initiation failed: %w", err)
 	}
 
-	// Poll for completion (async checkout may take a few seconds)
+	// Poll until checkedOut (async checkout may take a few seconds)
 	transactionID := txn.TransactionID
 	deadline := time.Now().Add(2 * time.Minute)
 	for time.Now().Before(deadline) {
-		profile, err := c.getCheckedOutProfile(transactionID)
+		active, err := c.MySessions()
 		if err != nil {
 			return nil, nil, err
 		}
-		if profile.Status == "checkedOut" {
-			creds, err := c.GetCredentials(transactionID)
-			if err != nil {
-				return nil, nil, err
+		for _, p := range active {
+			if p.TransactionID == transactionID && p.Status == "checkedOut" {
+				creds, err := c.GetCredentials(transactionID)
+				if err != nil {
+					return nil, nil, err
+				}
+				return &p, creds, nil
 			}
-			return profile, creds, nil
 		}
 		time.Sleep(2 * time.Second)
 	}
 	return nil, nil, fmt.Errorf("checkout timed out after 2 minutes")
-}
-
-// getCheckedOutProfile fetches status for a specific transaction.
-// GET /api/access/app-access-status (filter by transactionId)
-func (c *Client) getCheckedOutProfile(transactionID string) (*CheckedOutProfile, error) {
-	profiles, err := c.MySessions()
-	if err != nil {
-		return nil, err
-	}
-	for _, p := range profiles {
-		if p.TransactionID == transactionID {
-			return &p, nil
-		}
-	}
-	// Not found yet — return a placeholder with pending status
-	return &CheckedOutProfile{TransactionID: transactionID, Status: "checkOutSubmitted"}, nil
 }
 
 // GetCredentials retrieves credentials for an active checkout.
