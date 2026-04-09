@@ -2,17 +2,26 @@ package config_test
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/smichalabs/britivectl/internal/config"
 )
 
+func skipIfNotDarwin(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" {
+		t.Skip("keychain tests require macOS")
+	}
+}
+
 func uniqueTenant() string {
 	return fmt.Sprintf("bctl-test-%d", time.Now().UnixNano())
 }
 
 func TestSetGetDeleteToken(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteToken(tenant)
@@ -43,6 +52,7 @@ func TestSetGetDeleteToken(t *testing.T) {
 }
 
 func TestGetToken_NotSet(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	// No cleanup needed — nothing was set.
 
@@ -53,6 +63,7 @@ func TestGetToken_NotSet(t *testing.T) {
 }
 
 func TestSetGetDeleteTokenType(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenType(tenant)
@@ -80,6 +91,7 @@ func TestSetGetDeleteTokenType(t *testing.T) {
 }
 
 func TestGetTokenType_Default(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	// Nothing set — expect the default.
 
@@ -90,6 +102,7 @@ func TestGetTokenType_Default(t *testing.T) {
 }
 
 func TestSetGetDeleteTokenExpiry(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenExpiry(tenant)
@@ -117,6 +130,7 @@ func TestSetGetDeleteTokenExpiry(t *testing.T) {
 }
 
 func TestGetTokenExpiry_NotSet(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	// Nothing set — expect zero.
 
@@ -127,6 +141,7 @@ func TestGetTokenExpiry_NotSet(t *testing.T) {
 }
 
 func TestTokenExpiry_ZeroValue(t *testing.T) {
+	skipIfNotDarwin(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenExpiry(tenant)
