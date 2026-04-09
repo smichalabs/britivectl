@@ -194,7 +194,7 @@ release-dry: ## Full release dry-run via goreleaser (no publish)
 	goreleaser release --skip=publish --clean
 
 bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds — run once)
-	./scripts/bootstrap-aws.sh
+	@bash -i ./scripts/bootstrap-aws.sh
 
 docs: ## Build docs site locally (output: site/)
 	pip install -q -r docs/requirements.txt

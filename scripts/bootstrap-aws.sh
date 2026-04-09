@@ -27,14 +27,14 @@ echo ""
 # ── Prompt for root credentials if not in environment ─────────────────────────
 
 if [[ -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
-  echo -n "  AWS root Access Key ID: "
-  read -r AWS_ACCESS_KEY_ID
+  printf "  AWS root Access Key ID: "
+  read -r AWS_ACCESS_KEY_ID </dev/tty
   export AWS_ACCESS_KEY_ID
 fi
 
 if [[ -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
-  echo -n "  AWS root Secret Access Key: "
-  read -rs AWS_SECRET_ACCESS_KEY
+  printf "  AWS root Secret Access Key: "
+  read -rs AWS_SECRET_ACCESS_KEY </dev/tty
   echo ""
   export AWS_SECRET_ACCESS_KEY
 fi
