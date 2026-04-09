@@ -194,7 +194,7 @@ release-dry: ## Full release dry-run via goreleaser (no publish)
 	goreleaser release --skip=publish --clean
 
 bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds — run once)
-	@bash -i ./scripts/bootstrap-aws.sh
+	@AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) ./scripts/bootstrap-aws.sh
 
 docs: ## Build docs site locally (output: site/)
 	pip install -q -r docs/requirements.txt
