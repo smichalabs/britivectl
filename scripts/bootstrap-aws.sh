@@ -97,7 +97,8 @@ POLICY_DOC=$(cat <<'POLICY'
         "cloudfront:UpdateOriginAccessControl",
         "cloudfront:DeleteOriginAccessControl",
         "cloudfront:ListOriginAccessControls",
-        "cloudfront:CreateInvalidation"
+        "cloudfront:CreateInvalidation",
+        "cloudfront:ListDistributions"
       ],
       "Resource": "*"
     },

@@ -193,6 +193,9 @@ snapshot: ## Build release binaries locally via goreleaser (no publish)
 release-dry: ## Full release dry-run via goreleaser (no publish)
 	goreleaser release --skip=publish --clean
 
+setup-secrets: ## Set GitHub Actions secrets from terraform-cli credentials
+	./scripts/setup-github-secrets.sh
+
 bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds — run once)
 	./scripts/bootstrap-aws.sh
 
