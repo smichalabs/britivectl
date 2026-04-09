@@ -9,7 +9,22 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
 
 .PHONY: build test lint clean install snapshot release-dry completions bootstrap help
 
+define TOOL_TABLE
+	@echo "    ----------------------------------------------------------------"
+	@printf "  %-20s" "go";           command -v go           >/dev/null 2>&1 && printf "✓  %s\n" "$$(go version)"                                                       || printf "✗  not installed\n"
+	@printf "  %-20s" "pre-commit";   command -v pre-commit   >/dev/null 2>&1 && printf "✓  %s\n" "$$(pre-commit --version)"                                             || printf "✗  not installed\n"
+	@printf "  %-20s" "golangci-lint";command -v golangci-lint>/dev/null 2>&1 && printf "✓  %s\n" "$$(golangci-lint --version 2>&1 | grep -oE 'version [0-9.]+' | head -1)"|| printf "✗  not installed\n"
+	@printf "  %-20s" "gitleaks";     command -v gitleaks     >/dev/null 2>&1 && printf "✓  %s\n" "$$(gitleaks version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"       || printf "✗  not installed\n"
+	@printf "  %-20s" "gosec";        command -v gosec        >/dev/null 2>&1 && printf "✓  %s\n" "$$(gosec --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"        || printf "✗  not installed\n"
+	@printf "  %-20s" "goreleaser";   command -v goreleaser   >/dev/null 2>&1 && printf "✓  %s\n" "$$(goreleaser --version 2>&1 | grep -i 'version' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || printf "✗  not installed\n"
+	@echo "    ----------------------------------------------------------------"
+endef
+
 bootstrap: ## Install all dev tools and git hooks (run once after clone)
+	@echo ""
+	@echo "==> Preflight: tool status"
+	$(TOOL_TABLE)
+	@echo ""
 	@echo "==> Detecting OS..."
 	@OS=$$(uname -s); \
 	IS_WSL=false; \
@@ -73,6 +88,9 @@ bootstrap: ## Install all dev tools and git hooks (run once after clone)
 	fi
 	@echo "==> Installing git hooks..."
 	pre-commit install --install-hooks
+	@echo ""
+	@echo "==> Postflight: tool status"
+	$(TOOL_TABLE)
 	@echo ""
 	@echo "==> Bootstrap complete. Run 'make build' to verify your setup."
 
