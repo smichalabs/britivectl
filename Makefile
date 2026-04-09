@@ -12,6 +12,8 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
 bootstrap: ## Install all dev tools and git hooks (run once after clone)
 	@echo "==> Detecting OS..."
 	@OS=$$(uname -s); \
+	IS_WSL=false; \
+	if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then IS_WSL=true; fi; \
 	if [ "$$OS" = "Darwin" ]; then \
 		echo "  macOS detected — using Homebrew"; \
 		command -v brew >/dev/null 2>&1 || { echo "ERROR: Homebrew not found. Install from https://brew.sh"; exit 1; }; \
@@ -24,17 +26,40 @@ bootstrap: ## Install all dev tools and git hooks (run once after clone)
 			fi; \
 		done; \
 	elif [ "$$OS" = "Linux" ]; then \
-		echo "  Linux detected"; \
-		command -v pre-commit >/dev/null 2>&1 || pip3 install pre-commit; \
-		command -v gitleaks  >/dev/null 2>&1 || { \
+		if [ "$$IS_WSL" = "true" ]; then \
+			echo "  WSL detected"; \
+			echo ""; \
+			echo "  Checking WSL prerequisites..."; \
+			MISSING=""; \
+			command -v pip3      >/dev/null 2>&1 || MISSING="$$MISSING python3-pip"; \
+			command -v xdg-open  >/dev/null 2>&1 || command -v wslview >/dev/null 2>&1 || MISSING="$$MISSING wslu"; \
+			command -v curl      >/dev/null 2>&1 || MISSING="$$MISSING curl"; \
+			if [ -n "$$MISSING" ]; then \
+				echo ""; \
+				echo "  ERROR: Missing required packages. Install them first:"; \
+				echo ""; \
+				echo "    sudo apt update && sudo apt install -y$$MISSING"; \
+				echo ""; \
+				exit 1; \
+			fi; \
+			echo "  ✓ WSL prerequisites satisfied"; \
+			echo "  Note: 'bctl login' opens the browser via wslview (wslu)."; \
+			echo ""; \
+		else \
+			echo "  Linux detected"; \
+		fi; \
+		command -v pre-commit >/dev/null 2>&1 && echo "  ✓ pre-commit already installed" || pip3 install --user pre-commit; \
+		command -v gitleaks   >/dev/null 2>&1 && echo "  ✓ gitleaks already installed"   || { \
 			echo "  → installing gitleaks..."; \
-			curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_linux_x64.tar.gz \
-			| tar -xz -C /usr/local/bin gitleaks; }; \
-		command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest; \
-		command -v goreleaser >/dev/null 2>&1 || { \
+			ARCH=$$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'); \
+			curl -sSL "https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_linux_$${ARCH}.tar.gz" \
+			| sudo tar -xz -C /usr/local/bin gitleaks; }; \
+		command -v gosec      >/dev/null 2>&1 && echo "  ✓ gosec already installed"      || go install github.com/securego/gosec/v2/cmd/gosec@latest; \
+		command -v goreleaser >/dev/null 2>&1 && echo "  ✓ goreleaser already installed" || { \
 			echo "  → installing goreleaser..."; \
-			curl -sSL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz \
-			| tar -xz -C /usr/local/bin goreleaser; }; \
+			ARCH=$$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/arm64/'); \
+			curl -sSL "https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_$${ARCH}.tar.gz" \
+			| sudo tar -xz -C /usr/local/bin goreleaser; }; \
 	else \
 		echo "ERROR: Unsupported OS: $$OS"; exit 1; \
 	fi
