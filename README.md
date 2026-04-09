@@ -22,10 +22,14 @@ brew install smichalabs/tap/bctl
 curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
 ```
 
-### From source
+### Build from source
+
+Requires access to this repository:
 
 ```bash
-go install github.com/smichalabs/britivectl@latest
+git clone https://github.com/smichalabs/britivectl.git
+cd britivectl
+make install
 ```
 
 ---
