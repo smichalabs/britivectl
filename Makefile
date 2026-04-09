@@ -7,7 +7,7 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
                          -X $(MODULE)/pkg/version.Commit=$(COMMIT) \
                          -X $(MODULE)/pkg/version.BuildDate=$(BUILD_DATE)"
 
-.PHONY: build test lint clean install snapshot release-dry completions bootstrap help
+.PHONY: build test lint security clean install snapshot release-dry completions bootstrap help
 
 TOOL_PHASE ?= pre
 
@@ -138,6 +138,13 @@ test: ## Run tests with race detector and coverage
 
 lint: ## Run golangci-lint
 	golangci-lint run ./...
+
+security: ## Run security scans (gosec + gitleaks)
+	@echo "==> gosec: Go security analysis"
+	gosec -exclude=G104,G204,G302,G304 ./...
+	@echo ""
+	@echo "==> gitleaks: secret detection"
+	gitleaks detect --source . --verbose
 
 clean: ## Remove build artifacts (bin/, dist/, coverage.out)
 	rm -rf bin/ dist/ coverage.out
