@@ -31,11 +31,11 @@ bctl doctor
 Example output:
 
 ```
-bctl doctor — checking your environment
+bctl doctor: checking your environment
 ✓ Config file found at /Users/you/.bctl/config.yaml
 ✓ Tenant configured: acme
 ✓ Auth token found in keychain
 ✓ Britive API reachable
 ✓ AWS CLI found
-⚠ kubectl not found — EKS commands will not work
+⚠ kubectl not found: EKS commands will not work
 ```

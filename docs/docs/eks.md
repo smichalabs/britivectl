@@ -1,6 +1,6 @@
 # EKS Guide
 
-bctl has first-class support for Amazon EKS — it handles the full checkout + kubeconfig update in a single command.
+bctl has first-class support for Amazon EKS. It handles the full checkout + kubeconfig update in a single command.
 
 ## Prerequisites
 

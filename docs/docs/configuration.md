@@ -61,7 +61,7 @@ Tokens are stored in the OS keychain (macOS Keychain, Linux libsecret) and refre
 bctl login --token <token>
 ```
 
-Or set `BCTL_TOKEN` in your environment to bypass the keychain entirely — useful for CI pipelines.
+Or set `BCTL_TOKEN` in your environment to bypass the keychain entirely. Useful for CI pipelines.
 
 ## Profile aliases
 

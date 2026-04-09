@@ -1,4 +1,4 @@
-# bctl — Britive CLI
+# bctl: Britive CLI
 
 **bctl** is a fast, polished CLI for [Britive](https://www.britive.com) JIT access management.
 Replace manual web UI workflows and fragile scripts with a single binary.
@@ -28,13 +28,6 @@ bctl status              # see what's checked out and when it expires
 
     Auto-detects your distro: `.deb`, `.rpm`, or tarball.
 
-=== "Source"
-
-    ```bash
-    git clone https://github.com/smichalabs/britivectl.git
-    cd britivectl
-    make install
-    ```
 
 ---
 

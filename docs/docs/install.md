@@ -1,6 +1,6 @@
 # Install
 
-## macOS — Homebrew
+## macOS: Homebrew
 
 ```bash
 brew tap smichalabs/tap

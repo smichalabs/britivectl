@@ -54,7 +54,7 @@ Shows all active checkouts and their expiry times.
 bctl checkin dev
 ```
 
-Returns credentials early. They expire automatically — this is just for when you're done early.
+Returns credentials early. They expire automatically; use this when you're done early.
 
 ---
 
@@ -90,4 +90,4 @@ Add to `~/.aws/config`:
 credential_process = bctl checkout dev --output process
 ```
 
-Then `aws` will call `bctl` automatically when credentials are needed — no manual checkout required.
+Then `aws` will call `bctl` automatically when credentials are needed. No manual checkout required.
