@@ -55,7 +55,7 @@ func GetTokenExpiry(tenant string) int64 {
 		return 0
 	}
 	var ts int64
-	fmt.Sscan(s, &ts)
+	_, _ = fmt.Sscan(s, &ts)
 	return ts
 }
 

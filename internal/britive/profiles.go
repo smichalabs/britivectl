@@ -3,18 +3,18 @@ package britive
 // AppAccess is the top-level entry returned by GET /api/access.
 // Each entry is an application with embedded profiles and environments.
 type AppAccess struct {
-	AppContainerID string       `json:"appContainerId"`
-	AppName        string       `json:"appName"`
-	CatalogAppName string       `json:"catalogAppName"`
-	Profiles       []PAP        `json:"profiles"`
+	AppContainerID string `json:"appContainerId"`
+	AppName        string `json:"appName"`
+	CatalogAppName string `json:"catalogAppName"`
+	Profiles       []PAP  `json:"profiles"`
 }
 
 // PAP is a Britive Profile (PAP = Profile Access Profile).
 type PAP struct {
-	ProfileID   string       `json:"profileId"`
-	ProfileName string       `json:"profileName"`
-	PapID       int          `json:"papId"`
-	Environments []Env       `json:"environments"`
+	ProfileID    string `json:"profileId"`
+	ProfileName  string `json:"profileName"`
+	PapID        int    `json:"papId"`
+	Environments []Env  `json:"environments"`
 }
 
 // Env is a Britive environment (cloud account/project/subscription).

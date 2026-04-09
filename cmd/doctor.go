@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/fatih/color"
+	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -122,11 +122,11 @@ func runDoctor() error {
 	for _, c := range checks {
 		detail, err := c.fn()
 		if err != nil {
-			red.Printf("  ✗ %s\n", c.name)
-			yellow.Printf("    %v\n", err)
+			_, _ = red.Printf("  ✗ %s\n", c.name)
+			_, _ = yellow.Printf("    %v\n", err)
 			allOK = false
 		} else {
-			green.Printf("  ✓ %s", c.name)
+			_, _ = green.Printf("  ✓ %s", c.name)
 			if detail != "" {
 				fmt.Printf(" (%s)", detail)
 			}
@@ -136,9 +136,9 @@ func runDoctor() error {
 
 	fmt.Println()
 	if allOK {
-		green.Println("All checks passed!")
+		_, _ = green.Println("All checks passed!")
 	} else {
-		yellow.Println("Some checks failed. See above for details.")
+		_, _ = yellow.Println("Some checks failed. See above for details.")
 	}
 	return nil
 }

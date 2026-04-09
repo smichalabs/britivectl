@@ -41,8 +41,9 @@ type Credentials struct {
 
 // Checkout checks out a profile and returns credentials.
 // Flow: POST /api/access/{profileId}/environments/{environmentId}?accessType=PROGRAMMATIC
-//       → poll until status=checkedOut
-//       → GET /api/access/{transactionId}/tokens
+//
+//	→ poll until status=checkedOut
+//	→ GET /api/access/{transactionId}/tokens
 func (c *Client) Checkout(profileID, environmentID string) (*CheckedOutProfile, *Credentials, error) {
 	if profileID == "" || environmentID == "" {
 		return nil, nil, fmt.Errorf("profileId and environmentId must not be empty")

@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	cfgFile  string
+	cfgFile   string
 	outputFmt string
-	noColor  bool
-	tenant   string
+	noColor   bool
+	tenant    string
 )
 
 // rootCmd is the base command for bctl.
@@ -125,6 +125,6 @@ func initConfig() {
 	_ = viper.ReadInConfig()
 
 	if noColor {
-		os.Setenv("BCTL_NO_COLOR", "1")
+		_ = os.Setenv("BCTL_NO_COLOR", "1")
 	}
 }

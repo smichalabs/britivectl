@@ -18,7 +18,7 @@ func UpdateKubeconfig(cluster, region, profile string) error {
 		args = append(args, "--profile", profile)
 	}
 
-	cmd := exec.Command("aws", args...)
+	cmd := exec.Command("aws", args...) //nolint:gosec // "aws" is a fixed binary, args are controlled by bctl
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("aws eks update-kubeconfig failed: %w\n%s", err, string(out))

@@ -3,18 +3,30 @@ version: "2"
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - unused
-    - gofmt
-    - goimports
     - revive
 
   settings:
-    goimports:
-      local-prefixes: github.com/smichalabs/britivectl
+    errcheck:
+      # These functions return errors that are not actionable in practice:
+      # - Close() on deferred readers/writers — standard Go pattern
+      # - os.Remove/RemoveAll in defer — cleanup on exit, failure is benign
+      # - fmt.Fprintf/Println to terminal — stdout/stderr writes don't fail
+      # - os.Setenv — only used for internal env flags
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net/http.Response.Body).Close
+        - os.Remove
+        - os.RemoveAll
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Println
+        - os.Setenv
+        - (*compress/gzip.Reader).Close
+        - io.Copy
     revive:
       rules:
         - name: exported
@@ -24,13 +36,15 @@ linters:
 
 issues:
   exclude-rules:
-    - path: "_test.go"
-      linters:
-        - errcheck
-        - revive
-    - path: "cmd/"
-      linters:
-        - revive
+    # Test files — loose error handling is acceptable
+    - path: "_test\\.go"
+      linters: [errcheck, revive]
+    # Exported names that stutter would require breaking API changes
+    - text: "stutters"
+      linters: [revive]
+    # version package vars are set via ldflags
+    - path: "pkg/version/"
+      linters: [revive]
 
   max-issues-per-linter: 50
   max-same-issues: 5

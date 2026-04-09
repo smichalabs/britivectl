@@ -28,15 +28,15 @@ type Profile struct {
 	ProfileID     string `mapstructure:"profile_id"   yaml:"profile_id"`
 	EnvironmentID string `mapstructure:"env_id"       yaml:"env_id"`
 	// Human-readable path: AppName/EnvironmentName/ProfileName
-	BritivePath   string   `mapstructure:"britive_path" yaml:"britive_path"`
-	AWSProfile    string   `mapstructure:"aws_profile"  yaml:"aws_profile"`
-	Cloud         string   `mapstructure:"cloud"        yaml:"cloud"`
-	Region        string   `mapstructure:"region"       yaml:"region"`
-	EKSClusters   []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
+	BritivePath string   `mapstructure:"britive_path" yaml:"britive_path"`
+	AWSProfile  string   `mapstructure:"aws_profile"  yaml:"aws_profile"`
+	Cloud       string   `mapstructure:"cloud"        yaml:"cloud"`
+	Region      string   `mapstructure:"region"       yaml:"region"`
+	EKSClusters []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
 }
 
 // ConfigDir returns ~/.bctl.
-func ConfigDir() string {
+func ConfigDir() string { //nolint:revive // name predates this lint rule
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ".bctl"
@@ -45,7 +45,7 @@ func ConfigDir() string {
 }
 
 // ConfigPath returns ~/.bctl/config.yaml.
-func ConfigPath() string {
+func ConfigPath() string { //nolint:revive // name predates this lint rule
 	return filepath.Join(ConfigDir(), "config.yaml")
 }
 

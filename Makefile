@@ -7,7 +7,17 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
                          -X $(MODULE)/pkg/version.Commit=$(COMMIT) \
                          -X $(MODULE)/pkg/version.BuildDate=$(BUILD_DATE)"
 
-.PHONY: build test lint clean install snapshot release-dry completions help
+.PHONY: build test lint clean install snapshot release-dry completions bootstrap help
+
+bootstrap: ## Install all dev tools and git hooks (run once after clone)
+	@echo "==> Installing brew tools..."
+	brew install pre-commit gitleaks gosec goreleaser 2>/dev/null || true
+	@echo "==> Installing Go tools..."
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	@cp $(shell go env GOPATH)/bin/golangci-lint $(shell brew --prefix)/bin/golangci-lint
+	@echo "==> Installing git hooks..."
+	pre-commit install --install-hooks
+	@echo "==> Bootstrap complete. Run 'make build' to verify."
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage: make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
