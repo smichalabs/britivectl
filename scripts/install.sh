@@ -1,65 +1,126 @@
 #!/usr/bin/env bash
-# bctl installer — downloads the latest release from GitHub and installs to /usr/local/bin
+# bctl installer — auto-detects OS/distro and installs the right package
 set -euo pipefail
 
 REPO="smichalabs/britivectl"
 BINARY="bctl"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+log()  { echo "==> $*"; }
+die()  { echo "error: $*" >&2; exit 1; }
+
 detect_os() {
     case "$(uname -s)" in
-        Darwin) echo "Darwin" ;;
-        Linux)  echo "Linux"  ;;
-        *)      echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+        Darwin) echo "darwin" ;;
+        Linux)  echo "linux"  ;;
+        *)      die "Unsupported OS: $(uname -s)" ;;
     esac
 }
 
 detect_arch() {
     case "$(uname -m)" in
-        x86_64)  echo "x86_64" ;;
-        arm64)   echo "arm64"  ;;
-        aarch64) echo "arm64"  ;;
-        *)       echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
+        x86_64)          echo "x86_64" ;;
+        arm64|aarch64)   echo "arm64"  ;;
+        *)               die "Unsupported architecture: $(uname -m)" ;;
     esac
 }
+
+latest_version() {
+    curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+        | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
+}
+
+download() {
+    curl -fsSL -o "$2" "$1"
+}
+
+verify_checksum() {
+    local file="$1" checksums="$2" asset="$3"
+    grep "${asset}" "${checksums}" | sha256sum --check --status \
+        || die "Checksum verification failed for ${asset}"
+}
+
+# ── package manager install (Linux) ──────────────────────────────────────────
+
+install_deb() {
+    local url="$1" tmpdir="$2"
+    local asset; asset="$(basename "${url}")"
+    log "Downloading ${asset}..."
+    download "${url}" "${tmpdir}/${asset}"
+    log "Installing .deb package..."
+    sudo dpkg -i "${tmpdir}/${asset}"
+}
+
+install_rpm() {
+    local url="$1" tmpdir="$2"
+    local asset; asset="$(basename "${url}")"
+    log "Downloading ${asset}..."
+    download "${url}" "${tmpdir}/${asset}"
+    log "Installing .rpm package..."
+    if command -v dnf &>/dev/null; then
+        sudo dnf install -y "${tmpdir}/${asset}"
+    else
+        sudo rpm -i "${tmpdir}/${asset}"
+    fi
+}
+
+install_tarball() {
+    local url="$1" checksums_url="$2" tmpdir="$3" asset="$4"
+    log "Downloading ${asset}..."
+    download "${url}" "${tmpdir}/${asset}"
+    download "${checksums_url}" "${tmpdir}/checksums.txt"
+    log "Verifying checksum..."
+    (cd "${tmpdir}" && verify_checksum "${asset}" "checksums.txt" "${asset}")
+    log "Extracting..."
+    tar -xzf "${tmpdir}/${asset}" -C "${tmpdir}"
+    log "Installing to ${INSTALL_DIR}/${BINARY}..."
+    install -m 755 "${tmpdir}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+}
+
+# ── main ─────────────────────────────────────────────────────────────────────
 
 OS=$(detect_os)
 ARCH=$(detect_arch)
 
-echo "Detecting latest bctl release..."
-LATEST=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+log "Detecting latest bctl release..."
+TAG=$(latest_version)
+[ -n "${TAG}" ] || die "Could not determine latest release"
+VERSION="${TAG#v}"
 
-if [[ -z "$LATEST" ]]; then
-    echo "Error: could not determine latest release" >&2
-    exit 1
-fi
-
-VERSION="${LATEST#v}"
-ASSET="${BINARY}_${OS}_${ARCH}.tar.gz"
-URL="https://github.com/${REPO}/releases/download/${LATEST}/${ASSET}"
-CHECKSUM_URL="https://github.com/${REPO}/releases/download/${LATEST}/checksums.txt"
+log "Installing bctl ${TAG}..."
 
 TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+trap 'rm -rf "${TMPDIR}"' EXIT
 
-echo "Downloading bctl ${LATEST} (${OS}/${ARCH})..."
-curl -fsSL -o "${TMPDIR}/${ASSET}" "${URL}"
-curl -fsSL -o "${TMPDIR}/checksums.txt" "${CHECKSUM_URL}"
+BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
+OS_TITLE="$(tr '[:lower:]' '[:upper:]' <<< "${OS:0:1}")${OS:1}"
 
-echo "Verifying checksum..."
-cd "${TMPDIR}"
-grep "${ASSET}" checksums.txt | sha256sum --check --status || {
-    echo "Checksum verification failed" >&2
-    exit 1
-}
+if [[ "${OS}" == "darwin" ]]; then
+    ASSET="bctl_${OS_TITLE}_${ARCH}.tar.gz"
+    install_tarball "${BASE_URL}/${ASSET}" "${BASE_URL}/checksums.txt" "${TMPDIR}" "${ASSET}"
 
-echo "Extracting..."
-tar -xzf "${ASSET}"
-
-echo "Installing to ${INSTALL_DIR}/${BINARY}..."
-install -m 755 "${BINARY}" "${INSTALL_DIR}/${BINARY}"
+elif [[ "${OS}" == "linux" ]]; then
+    # Prefer native package manager
+    if command -v dpkg &>/dev/null; then
+        # Debian / Ubuntu / WSL
+        PKG_ARCH="${ARCH/x86_64/amd64}"
+        ASSET="bctl_${VERSION}_linux_${PKG_ARCH}.deb"
+        install_deb "${BASE_URL}/${ASSET}" "${TMPDIR}"
+    elif command -v rpm &>/dev/null; then
+        # RHEL / Fedora / CentOS
+        PKG_ARCH="${ARCH/arm64/aarch64}"
+        ASSET="bctl_${VERSION}_linux_${PKG_ARCH}.rpm"
+        install_rpm "${BASE_URL}/${ASSET}" "${TMPDIR}"
+    else
+        # Fallback: tarball
+        ASSET="bctl_${OS_TITLE}_${ARCH}.tar.gz"
+        install_tarball "${BASE_URL}/${ASSET}" "${BASE_URL}/checksums.txt" "${TMPDIR}" "${ASSET}"
+    fi
+fi
 
 echo ""
-echo "bctl ${LATEST} installed successfully!"
-echo "Run 'bctl --help' to get started."
+log "bctl ${TAG} installed successfully!"
+echo "    Run 'bctl --help' to get started."
+echo "    Run 'bctl init' to configure your tenant."

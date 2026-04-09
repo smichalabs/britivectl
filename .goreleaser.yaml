@@ -5,6 +5,7 @@ project_name: bctl
 before:
   hooks:
     - go mod tidy
+    - make completions
 
 builds:
   - id: bctl
@@ -34,6 +35,28 @@ archives:
       - README.md
       - completions/*
 
+# .deb (Debian/Ubuntu/WSL) and .rpm (RHEL/Fedora/CentOS) packages
+nfpms:
+  - id: bctl
+    package_name: bctl
+    vendor: smichalabs
+    homepage: https://github.com/smichalabs/britivectl
+    maintainer: Sajeeve <sajeeve@gmail.com>
+    description: A polished CLI for Britive JIT access management
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    contents:
+      - src: completions/bctl.bash
+        dst: /usr/share/bash-completion/completions/bctl
+      - src: completions/bctl.zsh
+        dst: /usr/share/zsh/vendor-completions/_bctl
+      - src: completions/bctl.fish
+        dst: /usr/share/fish/vendor_completions.d/bctl.fish
+
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
@@ -51,6 +74,7 @@ changelog:
       - Merge pull request
       - Merge branch
 
+# Homebrew tap — macOS
 brews:
   - name: bctl
     repository:
@@ -60,10 +84,10 @@ brews:
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-    homepage: "https://github.com/smichalabs/britivectl"
-    description: "A polished CLI for Britive JIT access management"
-    license: "MIT"
+    commit_msg_template: "chore: update bctl to {{ .Tag }}"
+    homepage: https://github.com/smichalabs/britivectl
+    description: A polished CLI for Britive JIT access management
+    license: MIT
     install: |
       bin.install "bctl"
       bash_completion.install "completions/bctl.bash" => "bctl"
