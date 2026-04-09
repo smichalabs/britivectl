@@ -5,7 +5,6 @@ project_name: bctl
 before:
   hooks:
     - go mod tidy
-    - make completions
 
 builds:
   - id: bctl
