@@ -7,7 +7,7 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
                          -X $(MODULE)/pkg/version.Commit=$(COMMIT) \
                          -X $(MODULE)/pkg/version.BuildDate=$(BUILD_DATE)"
 
-.PHONY: build test lint security tidy clean install snapshot release-dry completions bootstrap help
+.PHONY: build test lint security tidy clean install uninstall snapshot release-dry completions bootstrap bootstrap-aws docs docs-serve help
 
 TOOL_PHASE ?= pre
 
@@ -184,11 +184,33 @@ INSTALL_DIR ?= /opt/homebrew/bin
 install: build ## Build and install to $(INSTALL_DIR)
 	cp bin/$(BINARY) $(INSTALL_DIR)/$(BINARY)
 
+uninstall: ## Remove manually installed bctl from $(INSTALL_DIR) (use before switching to Homebrew)
+	rm -f $(INSTALL_DIR)/$(BINARY)
+
 snapshot: ## Build release binaries locally via goreleaser (no publish)
 	goreleaser release --snapshot --clean
 
 release-dry: ## Full release dry-run via goreleaser (no publish)
 	goreleaser release --skip=publish --clean
+
+setup-secrets: ## Set GitHub Actions secrets from terraform-cli credentials
+	./scripts/setup-github-secrets.sh
+
+bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds — run once)
+	./scripts/bootstrap-aws.sh
+
+docs: ## Build docs site locally (output: site/)
+	pip3 install -q --break-system-packages mkdocs-material
+	python3 -m mkdocs build --strict --site-dir site
+
+docs-serve: ## Serve docs locally with live reload (http://localhost:8000)
+	pip3 install -q --break-system-packages mkdocs-material
+	python3 -m mkdocs serve
+
+docs-deploy: docs ## Build and deploy docs to S3 + invalidate CloudFront
+	AWS_PROFILE=terraform aws s3 sync site/ s3://smichalabs-docs/utils/bctl --delete --cache-control "max-age=300"
+	$(eval DIST_ID := $(shell AWS_PROFILE=terraform aws cloudfront list-distributions --query "DistributionList.Items[0].Id" --output text))
+	AWS_PROFILE=terraform aws cloudfront create-invalidation --distribution-id $(DIST_ID) --paths "/*"
 
 completions: build ## Generate bash/zsh/fish shell completions
 	mkdir -p completions

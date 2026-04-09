@@ -1,0 +1,66 @@
+site_name: bctl
+docs_dir: docs/docs
+site_description: A fast CLI for Britive JIT access management
+site_url: https://smichalabs.dev/utils/bctl
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Quick Start: quickstart.md
+  - Configuration: configuration.md
+  - Commands:
+      - checkout: commands/checkout.md
+      - checkin: commands/checkin.md
+      - status: commands/status.md
+      - profiles: commands/profiles.md
+      - eks: commands/eks.md
+      - doctor: commands/doctor.md
+  - EKS Guide: eks.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/smichalabs/britivectl
