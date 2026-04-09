@@ -46,6 +46,11 @@ define TOOL_TABLE
 	else \
 		printf "  %-20s %-18s %-12s %s\n" "goreleaser" "not installed" "latest" "$(if $(filter post,$(TOOL_PHASE)),installed,install)"; \
 	fi
+	@if command -v govulncheck >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "govulncheck" "$$(govulncheck --version 2>&1 | grep Scanner | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" "latest" "$(if $(filter post,$(TOOL_PHASE)),skipped,skip)"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "govulncheck" "not installed" "latest" "$(if $(filter post,$(TOOL_PHASE)),installed,install)"; \
+	fi
 	@echo "  ---------------------------------------------------------------"
 endef
 
@@ -116,6 +121,13 @@ bootstrap: ## Install all dev tools and git hooks (run once after clone)
 		cp $$(go env GOPATH)/bin/golangci-lint $$(go env GOPATH)/bin/golangci-lint; \
 		command -v brew >/dev/null 2>&1 && cp $$(go env GOPATH)/bin/golangci-lint $$(brew --prefix)/bin/golangci-lint || true; \
 	fi
+	@echo "==> Installing govulncheck..."
+	@if command -v govulncheck >/dev/null 2>&1; then \
+		echo "  ✓ govulncheck already installed"; \
+	else \
+		go install golang.org/x/vuln/cmd/govulncheck@latest; \
+		command -v brew >/dev/null 2>&1 && cp $$(go env GOPATH)/bin/govulncheck $$(brew --prefix)/bin/govulncheck || true; \
+	fi
 	@echo "==> Installing git hooks..."
 	pre-commit install --install-hooks
 	@echo ""
@@ -139,12 +151,15 @@ test: ## Run tests with race detector and coverage
 lint: ## Run golangci-lint
 	golangci-lint run ./...
 
-security: ## Run security scans (gosec + gitleaks)
+security: ## Run security scans (gosec + gitleaks + govulncheck)
 	@echo "==> gosec: Go security analysis"
 	gosec -exclude=G104,G204,G302,G304 ./...
 	@echo ""
 	@echo "==> gitleaks: secret detection"
 	gitleaks detect --source . --verbose
+	@echo ""
+	@echo "==> govulncheck: dependency vulnerability scan"
+	govulncheck ./...
 
 clean: ## Remove build artifacts (bin/, dist/, coverage.out)
 	rm -rf bin/ dist/ coverage.out
