@@ -1,24 +1,54 @@
 repos:
+  # ── General hygiene ──────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      - id: detect-private-key
+
+  # ── Secret scanning ───────────────────────────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
+  # ── Go formatting & vetting ──────────────────────────────────────────────────
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
     hooks:
       - id: go-fmt
       - id: go-vet
-      - id: go-imports
+      - id: go-build
 
+  # ── Go linting ───────────────────────────────────────────────────────────────
   - repo: local
     hooks:
       - id: golangci-lint
         name: golangci-lint
         entry: golangci-lint run
         language: system
+        args: [--timeout=5m]
         types: [go]
         pass_filenames: false
 
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
+      # ── Go security scanning ────────────────────────────────────────────────
+      - id: gosec
+        name: gosec (Go security scanner)
+        entry: gosec
+        language: system
+        # G104: unhandled errors in color/defer calls — intentional
+        # G204: subprocess with variable — CLI args are controlled
+        # G302: file perms 0755 — required for an executable binary
+        # G304: file inclusion — paths are temp files we created
+        args: [-quiet, -exclude-generated, "-exclude=G104,G204,G302,G304", ./...]
+        types: [go]
+        pass_filenames: false

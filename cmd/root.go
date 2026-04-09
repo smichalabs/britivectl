@@ -3,16 +3,20 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/smichalabs/britivectl/internal/britive"
+	"github.com/smichalabs/britivectl/internal/config"
+	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	cfgFile  string
+	cfgFile   string
 	outputFmt string
-	noColor  bool
-	tenant   string
+	noColor   bool
+	tenant    string
 )
 
 // rootCmd is the base command for bctl.
@@ -60,6 +64,46 @@ func init() {
 	rootCmd.AddCommand(newCompletionCmd())
 }
 
+// requireToken returns a valid token for the tenant, automatically re-triggering
+// browser login if the stored token has expired. Mirrors PyBritive's behavior.
+func requireToken(tenant string) (string, error) {
+	token, err := config.GetToken(tenant)
+	if err != nil {
+		return "", fmt.Errorf("not logged in — run 'bctl login' first")
+	}
+
+	// Check expiry for Bearer (SSO) tokens
+	if config.GetTokenType(tenant) == "Bearer" {
+		exp := config.GetTokenExpiry(tenant)
+		if exp > 0 && time.Now().Unix() >= exp {
+			output.Info("Session expired — re-authenticating...")
+			newToken, err := britive.AuthWithBrowser(tenant)
+			if err != nil {
+				return "", fmt.Errorf("re-authentication failed: %w", err)
+			}
+			if err := config.SetToken(tenant, newToken); err != nil {
+				return "", fmt.Errorf("storing token: %w", err)
+			}
+			if newExp := britive.JWTExpiry(newToken); newExp > 0 {
+				_ = config.SetTokenExpiry(tenant, newExp)
+			}
+			token = newToken
+		}
+	}
+
+	return token, nil
+}
+
+// newAPIClient builds a Britive API client using the stored token,
+// selecting the correct auth header type (TOKEN vs Bearer).
+func newAPIClient(tenant, token string) *britive.Client {
+	tokenType := config.GetTokenType(tenant)
+	if tokenType == "Bearer" {
+		return britive.NewBearerClient(tenant, token)
+	}
+	return britive.NewClient(tenant, token)
+}
+
 // initConfig reads in config file and ENV variables.
 func initConfig() {
 	if cfgFile != "" {
@@ -81,6 +125,6 @@ func initConfig() {
 	_ = viper.ReadInConfig()
 
 	if noColor {
-		os.Setenv("BCTL_NO_COLOR", "1")
+		_ = os.Setenv("BCTL_NO_COLOR", "1")
 	}
 }

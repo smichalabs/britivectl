@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/aws"
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -48,7 +47,7 @@ func runEKSConnect(alias string) error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	token, err := config.GetToken(t)
+	token, err := requireToken(t)
 	if err != nil {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}
@@ -66,8 +65,12 @@ func runEKSConnect(alias string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", alias))
 	spin.Start()
 
-	client := britive.NewClient(t, token)
-	session, err := client.Checkout(profile.BritivePath)
+	if profile.ProfileID == "" || profile.EnvironmentID == "" {
+		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+	}
+
+	client := newAPIClient(t, token)
+	_, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
@@ -79,7 +82,7 @@ func runEKSConnect(alias string) error {
 	if awsProfile == "" {
 		awsProfile = alias
 	}
-	region := session.Credentials.Region
+	region := creds.Region
 	if region == "" {
 		region = profile.Region
 	}
@@ -88,9 +91,9 @@ func runEKSConnect(alias string) error {
 	}
 
 	if err := aws.WriteCredentials(awsProfile, aws.AWSCredentials{
-		AccessKeyID:     session.Credentials.AccessKeyID,
-		SecretAccessKey: session.Credentials.SecretAccessKey,
-		SessionToken:    session.Credentials.SessionToken,
+		AccessKeyID:     creds.AccessKeyID,
+		SecretAccessKey: creds.SecretAccessKey,
+		SessionToken:    creds.SessionToken,
 		Region:          region,
 	}); err != nil {
 		return fmt.Errorf("writing AWS credentials: %w", err)

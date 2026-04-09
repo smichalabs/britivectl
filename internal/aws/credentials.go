@@ -9,7 +9,7 @@ import (
 )
 
 // AWSCredentials holds temporary AWS credential values.
-type AWSCredentials struct {
+type AWSCredentials struct { //nolint:revive // name predates this lint rule; renaming would be a breaking change
 	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string

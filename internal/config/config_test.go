@@ -94,3 +94,79 @@ func TestLoadMissingFile(t *testing.T) {
 		t.Fatal("Load() returned nil config")
 	}
 }
+
+func TestLoad_InvalidConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	bctlDir := filepath.Join(tmpDir, ".bctl")
+	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Write a malformed YAML file so viper returns a parse error.
+	if err := os.WriteFile(filepath.Join(bctlDir, "config.yaml"), []byte("tenant: [unclosed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for malformed config file, got nil")
+	}
+}
+
+func TestSave_MkdirAllError(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// Place a regular file where .bctl directory should be so MkdirAll fails.
+	if err := os.WriteFile(filepath.Join(tmpDir, ".bctl"), []byte("blocker"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := config.Save(&config.Config{})
+	if err == nil {
+		t.Fatal("expected error when .bctl exists as a file, got nil")
+	}
+}
+
+func TestSave_CreateTempError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("running as root — cannot test permission denied errors")
+	}
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	bctlDir := filepath.Join(tmpDir, ".bctl")
+	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Make .bctl non-writable so CreateTemp fails.
+	if err := os.Chmod(bctlDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(bctlDir, 0o755) })
+
+	err := config.Save(&config.Config{})
+	if err == nil {
+		t.Fatal("expected error when .bctl is not writable, got nil")
+	}
+}
+
+func TestSave_RenameError(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	bctlDir := filepath.Join(tmpDir, ".bctl")
+	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Create a directory at config.yaml path so Rename fails (can't overwrite dir with file).
+	if err := os.MkdirAll(filepath.Join(bctlDir, "config.yaml"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	err := config.Save(&config.Config{})
+	if err == nil {
+		t.Fatal("expected error when config.yaml is a directory, got nil")
+	}
+}

@@ -2,13 +2,27 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
+	"unicode"
 
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// sanitizeAlias converts a profile name into a shell-friendly alias.
+func sanitizeAlias(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else if r == ' ' || r == '/' || r == '.' {
+			b.WriteRune('-')
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
 
 func newProfilesCmd() *cobra.Command {
 	profilesCmd := &cobra.Command{
@@ -83,7 +97,7 @@ func runProfilesSync() error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	token, err := config.GetToken(t)
+	token, err := requireToken(t)
 	if err != nil {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}
@@ -91,8 +105,8 @@ func runProfilesSync() error {
 	spin := output.NewSpinner("Syncing profiles from Britive API...")
 	spin.Start()
 
-	client := britive.NewClient(t, token)
-	profiles, err := client.ListProfiles()
+	client := newAPIClient(t, token)
+	entries, err := client.ListAccess()
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Failed to fetch profiles: %v", err))
 		return err
@@ -102,11 +116,17 @@ func runProfilesSync() error {
 		cfg.Profiles = make(map[string]config.Profile)
 	}
 
-	for _, p := range profiles {
-		alias := p.Name
+	for _, e := range entries {
+		// Auto-alias: profileName (disambiguate with env suffix if needed)
+		alias := sanitizeAlias(e.ProfileName)
+		if _, exists := cfg.Profiles[alias]; exists {
+			alias = sanitizeAlias(e.ProfileName + "-" + e.EnvironmentName)
+		}
 		cfg.Profiles[alias] = config.Profile{
-			BritivePath: p.ID,
-			Cloud:       "aws",
+			ProfileID:     e.ProfileID,
+			EnvironmentID: e.EnvironmentID,
+			BritivePath:   e.AppName + "/" + e.EnvironmentName + "/" + e.ProfileName,
+			Cloud:         e.Cloud,
 		}
 	}
 
@@ -115,6 +135,6 @@ func runProfilesSync() error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	spin.Success(fmt.Sprintf("Synced %d profiles", len(profiles)))
+	spin.Success(fmt.Sprintf("Synced %d profiles", len(entries)))
 	return nil
 }

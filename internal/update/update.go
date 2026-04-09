@@ -110,7 +110,7 @@ func DoUpdate(version string) error {
 	tmpBin := tmp.Name()
 	defer os.Remove(tmpBin)
 
-	newBin, err := os.Open(binaryPath)
+	newBin, err := os.Open(binaryPath) //nolint:gosec // binaryPath is a temp file we downloaded to a known location
 	if err != nil {
 		return fmt.Errorf("opening new binary: %w", err)
 	}
@@ -122,7 +122,7 @@ func DoUpdate(version string) error {
 	}
 	tmp.Close()
 
-	if err := os.Chmod(tmpBin, 0o755); err != nil {
+	if err := os.Chmod(tmpBin, 0o755); err != nil { //nolint:gosec // 0755 is required for an executable binary
 		return fmt.Errorf("setting permissions: %w", err)
 	}
 
@@ -135,7 +135,11 @@ func DoUpdate(version string) error {
 
 func downloadFile(url, dest string) error {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -145,7 +149,7 @@ func downloadFile(url, dest string) error {
 		return fmt.Errorf("HTTP %d downloading %s", resp.StatusCode, url)
 	}
 
-	f, err := os.Create(dest)
+	f, err := os.Create(dest) //nolint:gosec // dest is a temp dir path we control
 	if err != nil {
 		return err
 	}
@@ -156,7 +160,7 @@ func downloadFile(url, dest string) error {
 }
 
 func verifyChecksum(filePath, checksumPath, assetName string) error {
-	data, err := os.ReadFile(checksumPath)
+	data, err := os.ReadFile(checksumPath) //nolint:gosec // checksumPath is a temp file we wrote
 	if err != nil {
 		return err
 	}
@@ -175,7 +179,7 @@ func verifyChecksum(filePath, checksumPath, assetName string) error {
 		return fmt.Errorf("checksum for %s not found in checksums file", assetName)
 	}
 
-	f, err := os.Open(filePath)
+	f, err := os.Open(filePath) //nolint:gosec // filePath is a temp file we downloaded
 	if err != nil {
 		return err
 	}
@@ -195,7 +199,7 @@ func verifyChecksum(filePath, checksumPath, assetName string) error {
 
 // extractBinary extracts the bctl binary from a .tar.gz archive.
 func extractBinary(tarPath, destPath string) error {
-	f, err := os.Open(tarPath)
+	f, err := os.Open(tarPath) //nolint:gosec // tarPath is a temp file downloaded from a verified GitHub release
 	if err != nil {
 		return err
 	}
@@ -217,11 +221,12 @@ func extractBinary(tarPath, destPath string) error {
 			return fmt.Errorf("reading tar: %w", err)
 		}
 		if filepath.Base(hdr.Name) == "bctl" && hdr.Typeflag == tar.TypeReg {
-			out, err := os.Create(destPath)
+			out, err := os.Create(destPath) //nolint:gosec // destPath is a temp file in a dir we created
 			if err != nil {
 				return fmt.Errorf("creating output file: %w", err)
 			}
-			if _, err := io.Copy(out, tr); err != nil {
+			const maxBinarySize = 100 << 20 // 100 MB sanity cap
+			if _, err := io.Copy(out, io.LimitReader(tr, maxBinarySize)); err != nil {
 				out.Close()
 				return fmt.Errorf("extracting binary: %w", err)
 			}
