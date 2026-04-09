@@ -7,7 +7,7 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
                          -X $(MODULE)/pkg/version.Commit=$(COMMIT) \
                          -X $(MODULE)/pkg/version.BuildDate=$(BUILD_DATE)"
 
-.PHONY: build test lint security tidy clean install uninstall snapshot release-dry completions bootstrap docs docs-serve help
+.PHONY: build test lint security tidy clean install uninstall snapshot release-dry completions bootstrap bootstrap-aws docs docs-serve help
 
 TOOL_PHASE ?= pre
 
@@ -192,6 +192,9 @@ snapshot: ## Build release binaries locally via goreleaser (no publish)
 
 release-dry: ## Full release dry-run via goreleaser (no publish)
 	goreleaser release --skip=publish --clean
+
+bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds — run once)
+	./scripts/bootstrap-aws.sh
 
 docs: ## Build docs site locally (output: site/)
 	pip install -q -r docs/requirements.txt
