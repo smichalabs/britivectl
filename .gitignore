@@ -1,0 +1,40 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+coverage.out
+coverage.html
+*.out
+*.test
+
+# Build artifacts
+*.o
+*.a
+
+# Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local bctl config (don't commit personal config)
+.bctl/
+
+# goreleaser artifacts
+dist/
+
+# Completions (generated)
+completions/

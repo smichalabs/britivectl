@@ -1,0 +1,73 @@
+version: 2
+
+project_name: bctl
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: bctl
+    main: .
+    binary: bctl
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/smichalabs/britivectl/pkg/version.Version={{.Version}}
+      - -X github.com/smichalabs/britivectl/pkg/version.Commit={{.Commit}}
+      - -X github.com/smichalabs/britivectl/pkg/version.BuildDate={{.Date}}
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: bctl
+    formats:
+      - tar.gz
+    name_template: "bctl_{{ .Os | title }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - completions/*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: bctl
+    repository:
+      owner: smichalabs
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/smichalabs/britivectl"
+    description: "A polished CLI for Britive JIT access management"
+    license: "MIT"
+    install: |
+      bin.install "bctl"
+      bash_completion.install "completions/bctl.bash" => "bctl"
+      zsh_completion.install "completions/bctl.zsh" => "_bctl"
+      fish_completion.install "completions/bctl.fish"
+    test: |
+      system "#{bin}/bctl", "version"
