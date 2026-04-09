@@ -98,7 +98,12 @@ POLICY_DOC=$(cat <<'POLICY'
         "cloudfront:DeleteOriginAccessControl",
         "cloudfront:ListOriginAccessControls",
         "cloudfront:CreateInvalidation",
-        "cloudfront:ListDistributions"
+        "cloudfront:ListDistributions",
+        "cloudfront:CreateFunction",
+        "cloudfront:UpdateFunction",
+        "cloudfront:DeleteFunction",
+        "cloudfront:DescribeFunction",
+        "cloudfront:PublishFunction"
       ],
       "Resource": "*"
     },
@@ -213,13 +218,23 @@ info "Attaching policy to user..."
 aws iam attach-user-policy --user-name "${USER_NAME}" --policy-arn "${POLICY_ARN}"
 success "Policy attached"
 
-# ── Create access key ──────────────────────────────────────────────────────────
+# ── Create access key (skip if one already exists) ────────────────────────────
 
-info "Creating access key for '${USER_NAME}'..."
-KEY_OUTPUT=$(aws iam create-access-key --user-name "${USER_NAME}")
-KEY_ID=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['AccessKeyId'])")
-KEY_SECRET=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['SecretAccessKey'])")
-success "Access key created"
+info "Checking access keys for '${USER_NAME}'..."
+KEY_COUNT=$(aws iam list-access-keys --user-name "${USER_NAME}" \
+  --query 'length(AccessKeyMetadata)' --output text)
+
+if [[ "${KEY_COUNT}" -ge 1 ]]; then
+  warn "Access key already exists — skipping creation (delete old keys manually if needed)"
+  KEY_ID="(existing — check aws configure --profile terraform)"
+  KEY_SECRET="(existing)"
+else
+  info "Creating access key for '${USER_NAME}'..."
+  KEY_OUTPUT=$(aws iam create-access-key --user-name "${USER_NAME}")
+  KEY_ID=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['AccessKeyId'])")
+  KEY_SECRET=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['SecretAccessKey'])")
+  success "Access key created"
+fi
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 
