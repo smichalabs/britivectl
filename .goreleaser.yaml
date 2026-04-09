@@ -56,6 +56,11 @@ nfpms:
       - src: completions/bctl.fish
         dst: /usr/share/fish/vendor_completions.d/bctl.fish
 
+release:
+  github:
+    owner: smichalabs
+    name: britivectl-releases
+
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
@@ -84,7 +89,7 @@ brews:
       name: goreleaserbot
       email: bot@goreleaser.com
     commit_msg_template: "chore: update bctl to {{ .Tag }}"
-    homepage: https://github.com/smichalabs/britivectl
+    homepage: https://github.com/smichalabs/britivectl-releases
     description: A polished CLI for Britive JIT access management
     license: MIT
     install: |
