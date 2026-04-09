@@ -35,9 +35,16 @@ func JWTExpiry(token string) int64 {
 	return claims.Exp
 }
 
+// testBaseURL is set by tests to redirect API calls to a local test server.
+// It is always empty in production.
+var testBaseURL string
+
 // AuthWithToken validates an API token against the Britive API.
 func AuthWithToken(tenant, token string) error {
 	c := NewClient(tenant, token)
+	if testBaseURL != "" {
+		c.baseURL = testBaseURL
+	}
 	if err := c.Ping(); err != nil {
 		return fmt.Errorf("token validation failed: %w", err)
 	}
@@ -65,7 +72,11 @@ func AuthWithBrowser(tenant string) (string, error) {
 		fmt.Printf("\nCould not open browser automatically: %v\n", err)
 	}
 
-	return pollForToken(tenant, verifier)
+	pollURL := fmt.Sprintf("https://%s.britive-app.com/api/auth/cli/retrieve-tokens", tenant)
+	if testBaseURL != "" {
+		pollURL = testBaseURL + "/api/auth/cli/retrieve-tokens"
+	}
+	return pollForToken(pollURL, verifier)
 }
 
 // generateVerifier creates a random verifier and its SHA-512-based auth token.
@@ -90,8 +101,7 @@ func generateVerifier() (verifier, authToken string, err error) {
 
 // pollForToken polls Britive's token retrieval endpoint until the user
 // completes browser login or the timeout is reached.
-func pollForToken(tenant, verifier string) (string, error) {
-	url := fmt.Sprintf("https://%s.britive-app.com/api/auth/cli/retrieve-tokens", tenant)
+func pollForToken(url, verifier string) (string, error) {
 	body := map[string]interface{}{
 		"authParameters": map[string]string{
 			"cliToken": verifier,
