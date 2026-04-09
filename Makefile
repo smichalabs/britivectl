@@ -204,6 +204,11 @@ docs-serve: ## Serve docs locally with live reload (http://localhost:8000)
 	pip3 install -q --break-system-packages mkdocs-material
 	python3 -m mkdocs serve
 
+docs-deploy: docs ## Build and deploy docs to S3 + invalidate CloudFront
+	AWS_PROFILE=terraform aws s3 sync site/ s3://smichalabs-docs/utils/bctl --delete --cache-control "max-age=300"
+	$(eval DIST_ID := $(shell AWS_PROFILE=terraform aws cloudfront list-distributions --query "DistributionList.Items[0].Id" --output text))
+	AWS_PROFILE=terraform aws cloudfront create-invalidation --distribution-id $(DIST_ID) --paths "/*"
+
 completions: build ## Generate bash/zsh/fish shell completions
 	mkdir -p completions
 	./bin/$(BINARY) completion bash > completions/$(BINARY).bash
