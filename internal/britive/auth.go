@@ -1,18 +1,21 @@
 package britive
 
 import (
-	"context"
+	"bytes"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"net"
+	"io"
 	"net/http"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 )
 
-const callbackPort = "18789"
-
-// AuthWithToken validates the token against the Britive API.
+// AuthWithToken validates an API token against the Britive API.
 func AuthWithToken(tenant, token string) error {
 	c := NewClient(tenant, token)
 	if err := c.Ping(); err != nil {
@@ -21,65 +24,96 @@ func AuthWithToken(tenant, token string) error {
 	return nil
 }
 
-// AuthWithBrowser starts a local HTTP server, opens the browser for SSO,
-// waits for the redirect, and returns the token.
+// AuthWithBrowser implements Britive's CLI polling auth flow:
+//  1. Generate a random verifier and derive auth_token = base64url(sha512(verifier))
+//  2. Open browser to /login?token=<auth_token>
+//  3. Poll POST /api/auth/cli/retrieve-tokens with the verifier
+//  4. Return the Bearer access token once the user completes login
 func AuthWithBrowser(tenant string) (string, error) {
-	tokenCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-
-	mux := http.NewServeMux()
-	srv := &http.Server{
-		Addr:    ":" + callbackPort,
-		Handler: mux,
-	}
-
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get("token")
-		if token == "" {
-			http.Error(w, "missing token parameter", http.StatusBadRequest)
-			errCh <- fmt.Errorf("callback received without token")
-			return
-		}
-		fmt.Fprintf(w, "<html><body><h2>Authentication successful!</h2><p>You can close this window and return to bctl.</p></body></html>")
-		tokenCh <- token
-	})
-
-	// Start listener
-	ln, err := net.Listen("tcp", ":"+callbackPort)
+	verifier, authToken, err := generateVerifier()
 	if err != nil {
-		return "", fmt.Errorf("starting local server on :%s: %w", callbackPort, err)
+		return "", fmt.Errorf("generating auth verifier: %w", err)
 	}
 
-	go func() {
-		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-	}()
+	loginURL := fmt.Sprintf("https://%s.britive-app.com/login?token=%s", tenant, authToken)
 
-	loginURL := fmt.Sprintf("https://%s.britive-app.com/login?redirect_uri=http://localhost:%s/callback",
-		tenant, callbackPort)
+	fmt.Printf("Opening browser for authentication...\n")
+	fmt.Printf("If it does not open automatically, visit:\n  %s\n\n", loginURL)
+	fmt.Printf("Waiting for authentication")
 
-	fmt.Printf("Opening browser for authentication...\nIf it does not open automatically, visit:\n  %s\n\n", loginURL)
 	if err := openBrowser(loginURL); err != nil {
-		fmt.Printf("Could not open browser automatically: %v\n", err)
+		fmt.Printf("\nCould not open browser automatically: %v\n", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
+	return pollForToken(tenant, verifier)
+}
 
-	var token string
-	select {
-	case token = <-tokenCh:
-	case err = <-errCh:
-		_ = srv.Shutdown(context.Background())
-		return "", err
-	case <-ctx.Done():
-		_ = srv.Shutdown(context.Background())
-		return "", fmt.Errorf("authentication timed out after 5 minutes")
+// generateVerifier creates a random verifier and its SHA-512-based auth token.
+// Retries if the verifier contains "--" which Britive's WAF blocks.
+func generateVerifier() (verifier, authToken string, err error) {
+	for {
+		buf := make([]byte, 32)
+		if _, err = rand.Read(buf); err != nil {
+			return "", "", fmt.Errorf("generating random bytes: %w", err)
+		}
+
+		verifier = base64.RawURLEncoding.EncodeToString(buf)
+		if strings.Contains(verifier, "--") {
+			continue // WAF filter — retry
+		}
+
+		hash := sha512.Sum512([]byte(verifier))
+		authToken = base64.RawURLEncoding.EncodeToString(hash[:])
+		return verifier, authToken, nil
+	}
+}
+
+// pollForToken polls Britive's token retrieval endpoint until the user
+// completes browser login or the timeout is reached.
+func pollForToken(tenant, verifier string) (string, error) {
+	url := fmt.Sprintf("https://%s.britive-app.com/api/auth/cli/retrieve-tokens", tenant)
+	body := map[string]interface{}{
+		"authParameters": map[string]string{
+			"cliToken": verifier,
+		},
 	}
 
-	_ = srv.Shutdown(context.Background())
-	return token, nil
+	client := &http.Client{Timeout: 15 * time.Second}
+	deadline := time.Now().Add(5 * time.Minute)
+
+	for time.Now().Before(deadline) {
+		fmt.Print(".")
+
+		data, _ := json.Marshal(body)
+		resp, err := client.Post(url, "application/json", bytes.NewReader(data))
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			var result struct {
+				AuthenticationResult struct {
+					AccessToken string `json:"accessToken"`
+				} `json:"authenticationResult"`
+			}
+			if err := json.Unmarshal(respBody, &result); err != nil {
+				return "", fmt.Errorf("parsing token response: %w", err)
+			}
+			if result.AuthenticationResult.AccessToken != "" {
+				fmt.Println(" authenticated!")
+				return result.AuthenticationResult.AccessToken, nil
+			}
+		}
+
+		// 4xx means user hasn't finished yet — keep polling
+		time.Sleep(2 * time.Second)
+	}
+
+	return "", fmt.Errorf("authentication timed out after 5 minutes")
 }
 
 // openBrowser opens the specified URL in the default browser.

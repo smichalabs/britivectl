@@ -43,28 +43,33 @@ func runLogin(token string) error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	var finalToken string
+	var finalToken, tokenType string
 
 	if token != "" {
-		// Token auth
+		// API token auth
 		output.Info("Validating token for tenant %s...", t)
 		if err := britive.AuthWithToken(t, token); err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}
 		finalToken = token
+		tokenType = "TOKEN"
 	} else {
-		// Browser SSO
+		// Browser SSO — returns a Bearer JWT
 		output.Info("Starting browser-based authentication for tenant %s...", t)
 		tok, err := britive.AuthWithBrowser(t)
 		if err != nil {
 			return fmt.Errorf("browser authentication failed: %w", err)
 		}
 		finalToken = tok
+		tokenType = "Bearer"
 	}
 
-	// Store token in keychain
+	// Store token and its type in keychain
 	if err := config.SetToken(t, finalToken); err != nil {
 		return fmt.Errorf("storing token in keychain: %w", err)
+	}
+	if err := config.SetTokenType(t, tokenType); err != nil {
+		return fmt.Errorf("storing token type in keychain: %w", err)
 	}
 
 	output.Success("Logged in to tenant %s", t)

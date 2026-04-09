@@ -23,8 +23,10 @@ lint:
 clean:
 	rm -rf bin/ dist/ coverage.out
 
+INSTALL_DIR ?= /opt/homebrew/bin
+
 install: build
-	cp bin/$(BINARY) /usr/local/bin/$(BINARY)
+	cp bin/$(BINARY) $(INSTALL_DIR)/$(BINARY)
 
 snapshot:
 	goreleaser release --snapshot --clean

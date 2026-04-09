@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -49,7 +48,7 @@ func runCheckin(alias string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking in %s...", alias))
 	spin.Start()
 
-	client := britive.NewClient(t, token)
+	client := newAPIClient(t, token)
 	if err := client.Checkin(profile.BritivePath); err != nil {
 		spin.Fail(fmt.Sprintf("Checkin failed: %v", err))
 		return err

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -91,7 +90,7 @@ func runProfilesSync() error {
 	spin := output.NewSpinner("Syncing profiles from Britive API...")
 	spin.Start()
 
-	client := britive.NewClient(t, token)
+	client := newAPIClient(t, token)
 	profiles, err := client.ListProfiles()
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Failed to fetch profiles: %v", err))

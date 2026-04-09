@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/aws"
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -66,7 +65,7 @@ func runEKSConnect(alias string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", alias))
 	spin.Start()
 
-	client := britive.NewClient(t, token)
+	client := newAPIClient(t, token)
 	session, err := client.Checkout(profile.BritivePath)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))

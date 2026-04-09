@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -40,7 +39,7 @@ func runStatus() error {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}
 
-	client := britive.NewClient(t, token)
+	client := newAPIClient(t, token)
 	sessions, err := client.MySessions()
 	if err != nil {
 		return fmt.Errorf("fetching sessions: %w", err)

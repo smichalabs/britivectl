@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/smichalabs/britivectl/internal/britive"
+	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,6 +60,16 @@ func init() {
 	rootCmd.AddCommand(newDoctorCmd())
 	rootCmd.AddCommand(newUpdateCmd())
 	rootCmd.AddCommand(newCompletionCmd())
+}
+
+// newAPIClient builds a Britive API client using the stored token,
+// selecting the correct auth header type (TOKEN vs Bearer).
+func newAPIClient(tenant, token string) *britive.Client {
+	tokenType := config.GetTokenType(tenant)
+	if tokenType == "Bearer" {
+		return britive.NewBearerClient(tenant, token)
+	}
+	return britive.NewClient(tenant, token)
 }
 
 // initConfig reads in config file and ENV variables.
