@@ -59,24 +59,13 @@ POLICY_DOC=$(cat <<'POLICY'
       "Sid": "S3Docs",
       "Effect": "Allow",
       "Action": [
+        "s3:Get*",
+        "s3:List*",
         "s3:CreateBucket",
         "s3:DeleteBucket",
-        "s3:GetBucketLocation",
-        "s3:GetBucketPolicy",
         "s3:PutBucketPolicy",
         "s3:DeleteBucketPolicy",
-        "s3:GetBucketPublicAccessBlock",
         "s3:PutBucketPublicAccessBlock",
-        "s3:GetBucketAcl",
-        "s3:GetBucketCORS",
-        "s3:GetBucketVersioning",
-        "s3:GetBucketRequestPayment",
-        "s3:GetBucketLogging",
-        "s3:GetBucketObjectLockConfiguration",
-        "s3:GetEncryptionConfiguration",
-        "s3:GetLifecycleConfiguration",
-        "s3:GetReplicationConfiguration",
-        "s3:ListBucket",
         "s3:PutObject",
         "s3:DeleteObject"
       ],
@@ -103,7 +92,8 @@ POLICY_DOC=$(cat <<'POLICY'
         "cloudfront:UpdateFunction",
         "cloudfront:DeleteFunction",
         "cloudfront:DescribeFunction",
-        "cloudfront:PublishFunction"
+        "cloudfront:PublishFunction",
+        "cloudfront:GetFunction"
       ],
       "Resource": "*"
     },
