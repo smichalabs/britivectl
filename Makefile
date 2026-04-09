@@ -10,14 +10,41 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
 .PHONY: build test lint clean install snapshot release-dry completions bootstrap help
 
 define TOOL_TABLE
-	@echo "    ----------------------------------------------------------------"
-	@printf "  %-20s" "go";           command -v go           >/dev/null 2>&1 && printf "✓  %s\n" "$$(go version)"                                                       || printf "✗  not installed\n"
-	@printf "  %-20s" "pre-commit";   command -v pre-commit   >/dev/null 2>&1 && printf "✓  %s\n" "$$(pre-commit --version)"                                             || printf "✗  not installed\n"
-	@printf "  %-20s" "golangci-lint";command -v golangci-lint>/dev/null 2>&1 && printf "✓  %s\n" "$$(golangci-lint --version 2>&1 | grep -oE 'version [0-9.]+' | head -1)"|| printf "✗  not installed\n"
-	@printf "  %-20s" "gitleaks";     command -v gitleaks     >/dev/null 2>&1 && printf "✓  %s\n" "$$(gitleaks version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"       || printf "✗  not installed\n"
-	@printf "  %-20s" "gosec";        command -v gosec        >/dev/null 2>&1 && printf "✓  %s\n" "$$(gosec --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"        || printf "✗  not installed\n"
-	@printf "  %-20s" "goreleaser";   command -v goreleaser   >/dev/null 2>&1 && printf "✓  %s\n" "$$(goreleaser --version 2>&1 | grep -i 'version' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || printf "✗  not installed\n"
-	@echo "    ----------------------------------------------------------------"
+	@printf "\n  %-20s %-18s %-12s %s\n" "Tool" "Current" "Expected" "Action"
+	@echo "  ---------------------------------------------------------------"
+	@if command -v go >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "go" "$$(go version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" ">=1.21" "skip"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "go" "not installed" ">=1.21" "install"; \
+	fi
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "pre-commit" "$$(pre-commit --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" "latest" "skip"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "pre-commit" "not installed" "latest" "install"; \
+	fi
+	@if command -v golangci-lint >/dev/null 2>&1 && golangci-lint --version 2>&1 | grep -q "version 2"; then \
+		printf "  %-20s %-18s %-12s %s\n" "golangci-lint" "$$(golangci-lint --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" "v2+" "skip"; \
+	elif command -v golangci-lint >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "golangci-lint" "$$(golangci-lint --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" "v2+" "upgrade"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "golangci-lint" "not installed" "v2+" "install"; \
+	fi
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "gitleaks" "$$(gitleaks version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" "latest" "skip"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "gitleaks" "not installed" "latest" "install"; \
+	fi
+	@if command -v gosec >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "gosec" "$$(gosec --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" "latest" "skip"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "gosec" "not installed" "latest" "install"; \
+	fi
+	@if command -v goreleaser >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "goreleaser" "$$(goreleaser --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" "latest" "skip"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "goreleaser" "not installed" "latest" "install"; \
+	fi
+	@echo "  ---------------------------------------------------------------"
 endef
 
 bootstrap: ## Install all dev tools and git hooks (run once after clone)
