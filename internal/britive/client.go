@@ -2,6 +2,7 @@ package britive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,18 +14,33 @@ import (
 
 // Client is the Britive HTTP API client.
 type Client struct {
-	tenant  string
-	token   string
-	baseURL string
-	http    *http.Client
+	tenant    string
+	token     string
+	tokenType string // "TOKEN" for API tokens, "Bearer" for browser SSO JWTs
+	baseURL   string
+	http      *http.Client
 }
 
-// NewClient creates a new Britive API client.
+// NewClient creates a new Britive API client using an API token.
 func NewClient(tenant, token string) *Client {
 	return &Client{
-		tenant:  tenant,
-		token:   token,
-		baseURL: fmt.Sprintf("https://%s.britive-app.com", tenant),
+		tenant:    tenant,
+		token:     token,
+		tokenType: "TOKEN",
+		baseURL:   fmt.Sprintf("https://%s.britive-app.com", tenant),
+		http: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+// NewBearerClient creates a Britive API client using a Bearer JWT (from browser SSO).
+func NewBearerClient(tenant, token string) *Client {
+	return &Client{
+		tenant:    tenant,
+		token:     token,
+		tokenType: "Bearer",
+		baseURL:   fmt.Sprintf("https://%s.britive-app.com", tenant),
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -33,7 +49,7 @@ func NewClient(tenant, token string) *Client {
 
 // get performs a GET request and unmarshals the response into out.
 func (c *Client) get(path string, out interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -57,14 +73,11 @@ func (c *Client) post(path string, body, out interface{}) error {
 		}
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, &buf)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+path, &buf)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
 	c.setHeaders(req)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -76,10 +89,12 @@ func (c *Client) post(path string, body, out interface{}) error {
 }
 
 // setHeaders applies standard headers to all requests.
+// Britive's API requires Content-Type: application/json on all requests (including GETs).
 func (c *Client) setHeaders(req *http.Request) {
-	req.Header.Set("Authorization", "TOKEN "+c.token)
-	req.Header.Set("User-Agent", "bctl/"+version.Version)
+	req.Header.Set("Authorization", c.tokenType+" "+c.token)
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "bctl/"+version.Version)
 }
 
 // parseResponse checks the response status and decodes JSON.
@@ -104,7 +119,7 @@ func (c *Client) parseResponse(resp *http.Response, out interface{}) error {
 
 // Ping checks connectivity to the Britive API.
 func (c *Client) Ping() error {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}

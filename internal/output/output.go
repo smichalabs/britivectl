@@ -24,22 +24,22 @@ var (
 
 // Success prints a green success message to stdout.
 func Success(format string, args ...interface{}) {
-	successColor.Fprintf(os.Stdout, "✓ "+format+"\n", args...)
+	_, _ = successColor.Fprintf(os.Stdout, "✓ "+format+"\n", args...)
 }
 
 // Error prints a red error message to stderr.
 func Error(format string, args ...interface{}) {
-	errorColor.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
+	_, _ = errorColor.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
 }
 
 // Warning prints a yellow warning message to stdout.
 func Warning(format string, args ...interface{}) {
-	warningColor.Fprintf(os.Stdout, "⚠ "+format+"\n", args...)
+	_, _ = warningColor.Fprintf(os.Stdout, "⚠ "+format+"\n", args...)
 }
 
 // Info prints a cyan info message to stdout.
 func Info(format string, args ...interface{}) {
-	infoColor.Fprintf(os.Stdout, "  "+format+"\n", args...)
+	_, _ = infoColor.Fprintf(os.Stdout, "  "+format+"\n", args...)
 }
 
 // PrintJSON marshals v to indented JSON and writes to stdout.

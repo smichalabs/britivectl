@@ -1,6 +1,6 @@
 module github.com/smichalabs/britivectl
 
-go 1.25.0
+go 1.25.9
 
 require (
 	github.com/briandowns/spinner v1.23.2

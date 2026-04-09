@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/aws"
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -53,7 +52,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	token, err := config.GetToken(t)
+	token, err := requireToken(t)
 	if err != nil {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}
@@ -67,13 +66,17 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", alias))
 	spin.Start()
 
-	client := britive.NewClient(t, token)
-	session, err := client.Checkout(profile.BritivePath)
+	if profile.ProfileID == "" || profile.EnvironmentID == "" {
+		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+	}
+
+	client := newAPIClient(t, token)
+	checkedOut, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
 	}
-	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, session.ExpiresAt))
+	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, checkedOut.Expiration))
 
 	// Determine output format
 	if outFmt == "" {
@@ -85,8 +88,6 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	if outFmt == "" {
 		outFmt = "json"
 	}
-
-	creds := session.Credentials
 	region := creds.Region
 	if region == "" {
 		region = profile.Region
@@ -130,7 +131,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	case "json":
 		fallthrough
 	default:
-		if err := output.PrintJSON(session); err != nil {
+		if err := output.PrintJSON(creds); err != nil {
 			return err
 		}
 	}

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -35,12 +35,12 @@ func runStatus() error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	token, err := config.GetToken(t)
+	token, err := requireToken(t)
 	if err != nil {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}
 
-	client := britive.NewClient(t, token)
+	client := newAPIClient(t, token)
 	sessions, err := client.MySessions()
 	if err != nil {
 		return fmt.Errorf("fetching sessions: %w", err)
@@ -51,15 +51,26 @@ func runStatus() error {
 		return nil
 	}
 
+	// Build a reverse lookup: profileId → alias from local config
+	aliasLookup := make(map[string]string) // profileId → alias
+	for alias, p := range cfg.Profiles {
+		aliasLookup[p.ProfileID] = alias
+	}
+
 	rows := make([][]string, 0, len(sessions))
 	for _, s := range sessions {
+		alias := aliasLookup[s.PapID]
+		if alias == "" {
+			alias = s.PapID // fallback to raw ID
+		}
+		expiry := strings.Replace(s.Expiration, "T", " ", 1)
+		expiry = strings.TrimSuffix(expiry, "Z") + " UTC"
 		rows = append(rows, []string{
-			s.ProfileName,
+			alias,
 			s.Status,
-			s.CreatedAt,
-			s.ExpiresAt,
+			expiry,
 		})
 	}
-	output.PrintTable([]string{"PROFILE", "STATUS", "CREATED", "EXPIRES"}, rows)
+	output.PrintTable([]string{"PROFILE", "STATUS", "EXPIRES"}, rows)
 	return nil
 }

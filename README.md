@@ -10,17 +10,22 @@ Replace manual web UI workflows and fragile scripts with a single fast binary.
 
 ## Install
 
-### Homebrew (macOS)
+### macOS — Homebrew
 
 ```bash
 brew install smichalabs/tap/bctl
 ```
 
-### curl (Linux / macOS)
+### Linux / WSL — apt (Debian, Ubuntu)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
 ```
+
+The script auto-detects your distro and installs the right package:
+- Debian/Ubuntu/WSL → `.deb` via `dpkg`
+- RHEL/Fedora/CentOS → `.rpm` via `dnf`/`rpm`
+- Everything else → tarball to `/usr/local/bin`
 
 ### Build from source
 
