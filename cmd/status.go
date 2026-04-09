@@ -35,7 +35,7 @@ func runStatus() error {
 		return fmt.Errorf("tenant not configured — run 'bctl init' first")
 	}
 
-	token, err := config.GetToken(t)
+	token, err := requireToken(t)
 	if err != nil {
 		return fmt.Errorf("not logged in — run 'bctl login' first")
 	}

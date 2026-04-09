@@ -64,12 +64,15 @@ func runLogin(token string) error {
 		tokenType = "Bearer"
 	}
 
-	// Store token and its type in keychain
+	// Store token, type, and expiry in keychain
 	if err := config.SetToken(t, finalToken); err != nil {
 		return fmt.Errorf("storing token in keychain: %w", err)
 	}
 	if err := config.SetTokenType(t, tokenType); err != nil {
 		return fmt.Errorf("storing token type in keychain: %w", err)
+	}
+	if exp := britive.JWTExpiry(finalToken); exp > 0 {
+		_ = config.SetTokenExpiry(t, exp)
 	}
 
 	output.Success("Logged in to tenant %s", t)

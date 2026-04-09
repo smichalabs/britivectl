@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/zalando/go-keyring"
 )
 
@@ -39,4 +41,25 @@ func GetTokenType(tenant string) string {
 // DeleteTokenType removes the token type entry from the OS keychain.
 func DeleteTokenType(tenant string) error {
 	return keyring.Delete(keychainService, tenant+":type")
+}
+
+// SetTokenExpiry stores the token expiry as a Unix timestamp string.
+func SetTokenExpiry(tenant string, unixSecs int64) error {
+	return keyring.Set(keychainService, tenant+":expiry", fmt.Sprintf("%d", unixSecs))
+}
+
+// GetTokenExpiry returns the stored token expiry as a Unix timestamp, or 0 if not set.
+func GetTokenExpiry(tenant string) int64 {
+	s, err := keyring.Get(keychainService, tenant+":expiry")
+	if err != nil || s == "" {
+		return 0
+	}
+	var ts int64
+	fmt.Sscan(s, &ts)
+	return ts
+}
+
+// DeleteTokenExpiry removes the expiry entry from the OS keychain.
+func DeleteTokenExpiry(tenant string) error {
+	return keyring.Delete(keychainService, tenant+":expiry")
 }

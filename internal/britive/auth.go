@@ -15,6 +15,25 @@ import (
 	"time"
 )
 
+// JWTExpiry decodes a JWT (without verification) and returns the exp claim, or 0 on failure.
+func JWTExpiry(token string) int64 {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return 0
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return 0
+	}
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return 0
+	}
+	return claims.Exp
+}
+
 // AuthWithToken validates an API token against the Britive API.
 func AuthWithToken(tenant, token string) error {
 	c := NewClient(tenant, token)
