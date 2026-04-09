@@ -7,7 +7,7 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
                          -X $(MODULE)/pkg/version.Commit=$(COMMIT) \
                          -X $(MODULE)/pkg/version.BuildDate=$(BUILD_DATE)"
 
-.PHONY: build test lint security clean install snapshot release-dry completions bootstrap help
+.PHONY: build test lint security tidy clean install snapshot release-dry completions bootstrap help
 
 TOOL_PHASE ?= pre
 
@@ -145,13 +145,24 @@ build: ## Build bin/bctl with version info injected
 
 TEST_PKGS := $(shell find . -name '*_test.go' | xargs -I{} dirname {} | sort -u | sed 's|^\./||' | sed 's|^|$(MODULE)/|')
 
-test: ## Run tests with race detector and coverage
-	go test -v -race -cover $(TEST_PKGS)
+COVERAGE_THRESHOLD ?= 5
+
+test: ## Run tests with race detector and coverage (fails below $(COVERAGE_THRESHOLD)%)
+	go test -v -race -coverprofile=coverage.out $(TEST_PKGS)
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/,""); print int($$3)}'); \
+	echo "Coverage: $${total}% (threshold: $(COVERAGE_THRESHOLD)%)"; \
+	if [ "$$total" -lt "$(COVERAGE_THRESHOLD)" ]; then \
+		echo "FAIL: coverage $${total}% is below threshold $(COVERAGE_THRESHOLD)%"; \
+		exit 1; \
+	fi
 
 lint: ## Run golangci-lint
 	golangci-lint run ./...
 
-security: ## Run security scans (gosec + gitleaks + govulncheck)
+security: ## Run security scans (gosec + gitleaks + govulncheck + go mod verify)
+	@echo "==> go mod verify: module tamper check"
+	go mod verify
+	@echo ""
 	@echo "==> gosec: Go security analysis"
 	gosec -exclude=G104,G204,G302,G304 ./...
 	@echo ""
@@ -160,6 +171,10 @@ security: ## Run security scans (gosec + gitleaks + govulncheck)
 	@echo ""
 	@echo "==> govulncheck: dependency vulnerability scan"
 	govulncheck ./...
+
+tidy: ## Run go mod tidy and verify go.mod/go.sum are clean
+	go mod tidy
+	go mod verify
 
 clean: ## Remove build artifacts (bin/, dist/, coverage.out)
 	rm -rf bin/ dist/ coverage.out

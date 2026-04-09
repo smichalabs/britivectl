@@ -1,6 +1,7 @@
 package britive
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -94,7 +95,7 @@ func (c *Client) Checkin(transactionID string) error {
 	if transactionID == "" {
 		return fmt.Errorf("transactionId must not be empty")
 	}
-	req, err := http.NewRequest(http.MethodPut,
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPut,
 		fmt.Sprintf("%s/api/access/%s?type=API", c.baseURL, transactionID), nil)
 	if err != nil {
 		return fmt.Errorf("creating checkin request: %w", err)

@@ -2,6 +2,7 @@ package britive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,7 +49,7 @@ func NewBearerClient(tenant, token string) *Client {
 
 // get performs a GET request and unmarshals the response into out.
 func (c *Client) get(path string, out interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -72,7 +73,7 @@ func (c *Client) post(path string, body, out interface{}) error {
 		}
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, &buf)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+path, &buf)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -118,7 +119,7 @@ func (c *Client) parseResponse(resp *http.Response, out interface{}) error {
 
 // Ping checks connectivity to the Britive API.
 func (c *Client) Ping() error {
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}

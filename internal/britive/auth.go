@@ -2,6 +2,7 @@ package britive
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/base64"
@@ -104,7 +105,13 @@ func pollForToken(tenant, verifier string) (string, error) {
 		fmt.Print(".")
 
 		data, _ := json.Marshal(body)
-		resp, err := client.Post(url, "application/json", bytes.NewReader(data))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(data))
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
 		if err != nil {
 			time.Sleep(2 * time.Second)
 			continue
@@ -154,5 +161,5 @@ func openBrowser(url string) error {
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 
-	return exec.Command(cmd, args...).Start() //nolint:gosec // cmd and args are hardcoded per OS, not user input
+	return exec.CommandContext(context.Background(), cmd, args...).Start() //nolint:gosec // cmd and args are hardcoded per OS, not user input
 }

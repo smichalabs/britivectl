@@ -7,6 +7,10 @@ linters:
     - ineffassign
     - staticcheck
     - revive
+    - bodyclose
+    - noctx
+    - misspell
+    - unparam
 
   settings:
     errcheck:
