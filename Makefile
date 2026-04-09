@@ -145,7 +145,7 @@ build: ## Build bin/bctl with version info injected
 
 TEST_PKGS := $(shell find . -name '*_test.go' | xargs -I{} dirname {} | sort -u | sed 's|^\./||' | sed 's|^|$(MODULE)/|')
 
-COVERAGE_THRESHOLD ?= 5
+COVERAGE_THRESHOLD ?= 90
 
 test: ## Run tests with race detector and coverage (fails below $(COVERAGE_THRESHOLD)%)
 	go test -v -race -coverprofile=coverage.out $(TEST_PKGS)
