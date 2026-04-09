@@ -43,7 +43,6 @@ nav:
       - eks: commands/eks.md
       - doctor: commands/doctor.md
   - EKS Guide: eks.md
-  - Contributing: contributing.md
 
 plugins:
   - search
