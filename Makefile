@@ -197,12 +197,12 @@ bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds
 	./scripts/bootstrap-aws.sh
 
 docs: ## Build docs site locally (output: site/)
-	pip install -q -r docs/requirements.txt
-	mkdocs build --strict --site-dir site
+	pip3 install -q --break-system-packages mkdocs-material
+	python3 -m mkdocs build --strict --site-dir site
 
 docs-serve: ## Serve docs locally with live reload (http://localhost:8000)
-	pip install -q -r docs/requirements.txt
-	mkdocs serve
+	pip3 install -q --break-system-packages mkdocs-material
+	python3 -m mkdocs serve
 
 completions: build ## Generate bash/zsh/fish shell completions
 	mkdir -p completions

@@ -6,6 +6,7 @@ set -euo pipefail
 
 POLICY_NAME="bctl-docs-terraform"
 USER_NAME="terraform-cli"
+STATE_BUCKET="smichalabs-terraform-state"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -136,6 +137,23 @@ POLICY_DOC=$(cat <<'POLICY'
       "Resource": "*"
     },
     {
+      "Sid": "TerraformState",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:CreateBucket",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": [
+        "arn:aws:s3:::smichalabs-terraform-state",
+        "arn:aws:s3:::smichalabs-terraform-state/*"
+      ]
+    },
+    {
       "Sid": "STS",
       "Effect": "Allow",
       "Action": "sts:GetCallerIdentity",
@@ -145,6 +163,18 @@ POLICY_DOC=$(cat <<'POLICY'
 }
 POLICY
 )
+
+# ── Create Terraform state bucket ─────────────────────────────────────────────
+
+info "Creating Terraform state bucket '${STATE_BUCKET}'..."
+if aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
+  warn "State bucket '${STATE_BUCKET}' already exists — skipping"
+else
+  aws s3api create-bucket --bucket "${STATE_BUCKET}" --region us-east-1 >/dev/null
+  aws s3api put-bucket-versioning --bucket "${STATE_BUCKET}" \
+    --versioning-configuration Status=Enabled >/dev/null
+  success "Created state bucket '${STATE_BUCKET}' with versioning"
+fi
 
 # ── Create IAM user ────────────────────────────────────────────────────────────
 
@@ -193,16 +223,19 @@ success "Access key created"
 # ── Summary ────────────────────────────────────────────────────────────────────
 
 echo ""
-echo -e "${BOLD}==> Done. Configure your CLI and run Terraform:${NC}"
+echo -e "${BOLD}==> Done. Next steps:${NC}"
 echo ""
-echo "  aws configure --profile terraform"
-echo -e "  ${YELLOW}AWS Access Key ID:${NC}     ${KEY_ID}"
-echo -e "  ${YELLOW}AWS Secret Access Key:${NC} ${KEY_SECRET}"
-echo -e "  ${YELLOW}Default region:${NC}        us-east-1"
+echo "  1. Configure local CLI profile:"
+echo "     aws configure --profile terraform"
+echo -e "     ${YELLOW}AWS Access Key ID:${NC}     ${KEY_ID}"
+echo -e "     ${YELLOW}AWS Secret Access Key:${NC} ${KEY_SECRET}"
+echo -e "     ${YELLOW}Default region:${NC}        us-east-1"
 echo ""
-echo "  cd infra"
-echo "  terraform init"
-echo "  AWS_PROFILE=terraform terraform apply"
+echo "  2. Add GitHub repo secrets (Settings → Secrets → Actions):"
+echo -e "     ${YELLOW}TF_AWS_ACCESS_KEY_ID${NC}     = ${KEY_ID}"
+echo -e "     ${YELLOW}TF_AWS_SECRET_ACCESS_KEY${NC} = ${KEY_SECRET}"
+echo ""
+echo "  3. Push to main — CI will run terraform apply automatically"
 echo ""
 echo -e "${BOLD}==> After terraform apply:${NC}"
 echo "  1. Add DNS records from 'terraform output acm_validation_records' to Namecheap"

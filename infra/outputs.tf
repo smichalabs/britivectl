@@ -1,6 +1,11 @@
 output "cloudfront_domain" {
-  description = "Add this as a CNAME in Namecheap for bctl.smichalabs.dev"
+  description = "Add this as a CNAME in Namecheap for smichalabs.dev (@ record)"
   value       = aws_cloudfront_distribution.docs.domain_name
+}
+
+output "docs_url" {
+  description = "Your docs will be live at this URL"
+  value       = "https://${var.domain}/${var.docs_path}"
 }
 
 output "acm_validation_records" {

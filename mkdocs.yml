@@ -1,6 +1,7 @@
 site_name: bctl
+docs_dir: docs/docs
 site_description: A fast CLI for Britive JIT access management
-site_url: https://bctl.smichalabs.dev
+site_url: https://smichalabs.dev/utils/bctl
 repo_name: smichalabs/britivectl
 repo_url: https://github.com/smichalabs/britivectl
 edit_uri: edit/main/docs/docs/

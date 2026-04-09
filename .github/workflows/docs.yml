@@ -39,7 +39,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Deploy to S3
-        run: aws s3 sync site/ s3://${{ secrets.DOCS_BUCKET }} --delete --cache-control "max-age=300"
+        run: aws s3 sync site/ s3://${{ secrets.DOCS_BUCKET }}/utils/bctl --delete --cache-control "max-age=300"
 
       - name: Invalidate CloudFront
         run: |

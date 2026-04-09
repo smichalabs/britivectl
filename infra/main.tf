@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.5"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -11,6 +11,7 @@ terraform {
 provider "aws" {
   region = "us-east-1"
 }
+
 
 # ── S3 bucket ──────────────────────────────────────────────────────────────────
 
@@ -67,11 +68,37 @@ resource "aws_acm_certificate" "docs" {
   }
 }
 
+# ── ACM certificate validation (waits until DNS records are added) ─────────────
+
+resource "aws_acm_certificate_validation" "docs" {
+  certificate_arn = aws_acm_certificate.docs.arn
+}
+
+# ── CloudFront function: rewrite /path/to/dir → /path/to/dir/index.html ────────
+
+resource "aws_cloudfront_function" "rewrite_index" {
+  name    = "rewrite-index"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOT
+    async function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+      if (uri.endsWith('/')) {
+        request.uri += 'index.html';
+      } else if (!uri.includes('.')) {
+        request.uri += '/index.html';
+      }
+      return request;
+    }
+  EOT
+}
+
 # ── CloudFront distribution ────────────────────────────────────────────────────
 
 resource "aws_cloudfront_distribution" "docs" {
   enabled             = true
-  default_root_object = "index.html"
+  default_root_object = "${var.docs_path}/index.html"
   aliases             = [var.domain]
   price_class         = "PriceClass_100" # US + Europe only — cheapest
 
@@ -87,6 +114,11 @@ resource "aws_cloudfront_distribution" "docs" {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.rewrite_index.arn
+    }
 
     forwarded_values {
       query_string = false
@@ -110,7 +142,7 @@ resource "aws_cloudfront_distribution" "docs" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate.docs.arn
+    acm_certificate_arn      = aws_acm_certificate_validation.docs.certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
