@@ -10,14 +10,46 @@ LDFLAGS    := -ldflags "-X $(MODULE)/pkg/version.Version=$(VERSION) \
 .PHONY: build test lint clean install snapshot release-dry completions bootstrap help
 
 bootstrap: ## Install all dev tools and git hooks (run once after clone)
-	@echo "==> Installing brew tools..."
-	brew install pre-commit gitleaks gosec goreleaser 2>/dev/null || true
-	@echo "==> Installing Go tools..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	@cp $(shell go env GOPATH)/bin/golangci-lint $(shell brew --prefix)/bin/golangci-lint
+	@echo "==> Detecting OS..."
+	@OS=$$(uname -s); \
+	if [ "$$OS" = "Darwin" ]; then \
+		echo "  macOS detected — using Homebrew"; \
+		command -v brew >/dev/null 2>&1 || { echo "ERROR: Homebrew not found. Install from https://brew.sh"; exit 1; }; \
+		for tool in pre-commit gitleaks gosec goreleaser; do \
+			if command -v $$tool >/dev/null 2>&1; then \
+				echo "  ✓ $$tool already installed"; \
+			else \
+				echo "  → installing $$tool..."; \
+				brew install $$tool; \
+			fi; \
+		done; \
+	elif [ "$$OS" = "Linux" ]; then \
+		echo "  Linux detected"; \
+		command -v pre-commit >/dev/null 2>&1 || pip3 install pre-commit; \
+		command -v gitleaks  >/dev/null 2>&1 || { \
+			echo "  → installing gitleaks..."; \
+			curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_linux_x64.tar.gz \
+			| tar -xz -C /usr/local/bin gitleaks; }; \
+		command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest; \
+		command -v goreleaser >/dev/null 2>&1 || { \
+			echo "  → installing goreleaser..."; \
+			curl -sSL https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz \
+			| tar -xz -C /usr/local/bin goreleaser; }; \
+	else \
+		echo "ERROR: Unsupported OS: $$OS"; exit 1; \
+	fi
+	@echo "==> Installing golangci-lint v2..."
+	@if command -v golangci-lint >/dev/null 2>&1 && golangci-lint --version 2>&1 | grep -q "version 2"; then \
+		echo "  ✓ golangci-lint v2 already installed"; \
+	else \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest; \
+		cp $$(go env GOPATH)/bin/golangci-lint $$(go env GOPATH)/bin/golangci-lint; \
+		command -v brew >/dev/null 2>&1 && cp $$(go env GOPATH)/bin/golangci-lint $$(brew --prefix)/bin/golangci-lint || true; \
+	fi
 	@echo "==> Installing git hooks..."
 	pre-commit install --install-hooks
-	@echo "==> Bootstrap complete. Run 'make build' to verify."
+	@echo ""
+	@echo "==> Bootstrap complete. Run 'make build' to verify your setup."
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage: make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
