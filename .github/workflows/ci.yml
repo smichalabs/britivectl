@@ -12,7 +12,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            coverage_threshold: 85
+          - os: macos-latest
+            coverage_threshold: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +32,8 @@ jobs:
 
       - name: Test
         run: make test
+        env:
+          COVERAGE_THRESHOLD: ${{ matrix.coverage_threshold }}
 
   lint:
     name: Lint
@@ -42,11 +48,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v2.x
-          args: --timeout=5m
+        run: golangci-lint run --timeout=5m ./...
 
   security:
     name: Security
