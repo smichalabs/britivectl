@@ -24,11 +24,15 @@ type AuthConfig struct {
 
 // Profile is a named Britive access profile.
 type Profile struct {
-	BritivePath string   `mapstructure:"britive_path" yaml:"britive_path"`
-	AWSProfile  string   `mapstructure:"aws_profile"  yaml:"aws_profile"`
-	Cloud       string   `mapstructure:"cloud"        yaml:"cloud"`
-	Region      string   `mapstructure:"region"       yaml:"region"`
-	EKSClusters []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
+	// API IDs (set by `bctl profiles sync`, used for checkout/checkin API calls)
+	ProfileID     string `mapstructure:"profile_id"   yaml:"profile_id"`
+	EnvironmentID string `mapstructure:"env_id"       yaml:"env_id"`
+	// Human-readable path: AppName/EnvironmentName/ProfileName
+	BritivePath   string   `mapstructure:"britive_path" yaml:"britive_path"`
+	AWSProfile    string   `mapstructure:"aws_profile"  yaml:"aws_profile"`
+	Cloud         string   `mapstructure:"cloud"        yaml:"cloud"`
+	Region        string   `mapstructure:"region"       yaml:"region"`
+	EKSClusters   []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
 }
 
 // ConfigDir returns ~/.bctl.

@@ -54,11 +54,12 @@ func runStatus() error {
 	for _, s := range sessions {
 		rows = append(rows, []string{
 			s.ProfileName,
+			s.EnvironmentName,
+			s.AppName,
 			s.Status,
-			s.CreatedAt,
-			s.ExpiresAt,
+			s.ExpirationTime,
 		})
 	}
-	output.PrintTable([]string{"PROFILE", "STATUS", "CREATED", "EXPIRES"}, rows)
+	output.PrintTable([]string{"PROFILE", "ENVIRONMENT", "APP", "STATUS", "EXPIRES"}, rows)
 	return nil
 }

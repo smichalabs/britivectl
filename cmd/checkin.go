@@ -45,11 +45,33 @@ func runCheckin(alias string) error {
 		return fmt.Errorf("profile alias %q not found in config", alias)
 	}
 
+	if profile.ProfileID == "" {
+		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+	}
+
+	client := newAPIClient(t, token)
+
+	// Find the active transaction for this profile
+	sessions, err := client.MySessions()
+	if err != nil {
+		return fmt.Errorf("fetching active sessions: %w", err)
+	}
+
+	var transactionID string
+	for _, s := range sessions {
+		if s.CheckedIn == nil && s.EnvironmentID == profile.EnvironmentID {
+			transactionID = s.TransactionID
+			break
+		}
+	}
+	if transactionID == "" {
+		return fmt.Errorf("no active checkout found for %q", alias)
+	}
+
 	spin := output.NewSpinner(fmt.Sprintf("Checking in %s...", alias))
 	spin.Start()
 
-	client := newAPIClient(t, token)
-	if err := client.Checkin(profile.BritivePath); err != nil {
+	if err := client.Checkin(transactionID); err != nil {
 		spin.Fail(fmt.Sprintf("Checkin failed: %v", err))
 		return err
 	}

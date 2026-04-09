@@ -65,8 +65,12 @@ func runEKSConnect(alias string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", alias))
 	spin.Start()
 
+	if profile.ProfileID == "" || profile.EnvironmentID == "" {
+		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+	}
+
 	client := newAPIClient(t, token)
-	session, err := client.Checkout(profile.BritivePath)
+	_, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
@@ -78,7 +82,7 @@ func runEKSConnect(alias string) error {
 	if awsProfile == "" {
 		awsProfile = alias
 	}
-	region := session.Credentials.Region
+	region := creds.Region
 	if region == "" {
 		region = profile.Region
 	}
@@ -87,9 +91,9 @@ func runEKSConnect(alias string) error {
 	}
 
 	if err := aws.WriteCredentials(awsProfile, aws.AWSCredentials{
-		AccessKeyID:     session.Credentials.AccessKeyID,
-		SecretAccessKey: session.Credentials.SecretAccessKey,
-		SessionToken:    session.Credentials.SessionToken,
+		AccessKeyID:     creds.AccessKeyID,
+		SecretAccessKey: creds.SecretAccessKey,
+		SessionToken:    creds.SessionToken,
 		Region:          region,
 	}); err != nil {
 		return fmt.Errorf("writing AWS credentials: %w", err)

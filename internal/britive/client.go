@@ -77,9 +77,6 @@ func (c *Client) post(path string, body, out interface{}) error {
 		return fmt.Errorf("creating request: %w", err)
 	}
 	c.setHeaders(req)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -91,10 +88,12 @@ func (c *Client) post(path string, body, out interface{}) error {
 }
 
 // setHeaders applies standard headers to all requests.
+// Britive's API requires Content-Type: application/json on all requests (including GETs).
 func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("Authorization", c.tokenType+" "+c.token)
-	req.Header.Set("User-Agent", "bctl/"+version.Version)
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "bctl/"+version.Version)
 }
 
 // parseResponse checks the response status and decodes JSON.

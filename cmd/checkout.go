@@ -66,13 +66,17 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", alias))
 	spin.Start()
 
+	if profile.ProfileID == "" || profile.EnvironmentID == "" {
+		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+	}
+
 	client := newAPIClient(t, token)
-	session, err := client.Checkout(profile.BritivePath)
+	checkedOut, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
 	}
-	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, session.ExpiresAt))
+	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", alias, checkedOut.ExpirationTime))
 
 	// Determine output format
 	if outFmt == "" {
@@ -84,8 +88,6 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	if outFmt == "" {
 		outFmt = "json"
 	}
-
-	creds := session.Credentials
 	region := creds.Region
 	if region == "" {
 		region = profile.Region
@@ -129,7 +131,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	case "json":
 		fallthrough
 	default:
-		if err := output.PrintJSON(session); err != nil {
+		if err := output.PrintJSON(creds); err != nil {
 			return err
 		}
 	}
