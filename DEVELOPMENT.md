@@ -1,4 +1,4 @@
-# CLAUDE.md — bctl development guide
+# bctl development guide
 
 ## Project purpose
 
