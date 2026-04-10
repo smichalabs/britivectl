@@ -34,6 +34,11 @@ output "cloudfront_distribution_id" {
   value       = aws_cloudfront_distribution.docs.id
 }
 
+output "nameservers" {
+  description = "Set these as custom nameservers in Namecheap"
+  value       = aws_route53_zone.main.name_servers
+}
+
 output "sns_alerts_topic_arn" {
   description = "SNS topic ARN for infrastructure alerts"
   value       = aws_sns_topic.alerts.arn

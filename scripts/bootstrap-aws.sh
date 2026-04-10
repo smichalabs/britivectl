@@ -31,15 +31,17 @@ echo -e "${BOLD}bctl -- AWS bootstrap (OIDC)${NC}"
 echo "  Creates the GitHub OIDC provider and Terraform IAM role for CI."
 echo ""
 
-# ── Prompt for root credentials if not in environment ─────────────────────────
+# ── Resolve credentials (profile, env vars, or prompt) ────────────────────────
 
-if [[ -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
+if [[ -n "${AWS_PROFILE:-}" ]]; then
+  info "Using AWS profile '${AWS_PROFILE}'"
+elif [[ -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
   printf "  AWS root Access Key ID: "
   read -r AWS_ACCESS_KEY_ID </dev/tty
   export AWS_ACCESS_KEY_ID
 fi
 
-if [[ -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+if [[ -z "${AWS_PROFILE:-}" && -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
   printf "  AWS root Secret Access Key: "
   read -rs AWS_SECRET_ACCESS_KEY </dev/tty
   echo ""
@@ -167,6 +169,12 @@ INFRA_POLICY=$(cat <<'POLICY'
         "iam:GetOpenIDConnectProvider",
         "iam:ListOpenIDConnectProviders"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53",
+      "Effect": "Allow",
+      "Action": "route53:*",
       "Resource": "*"
     },
     {
