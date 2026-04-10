@@ -51,6 +51,11 @@ define TOOL_TABLE
 	else \
 		printf "  %-20s %-18s %-12s %s\n" "govulncheck" "not installed" "latest" "$(if $(filter post,$(TOOL_PHASE)),installed,install)"; \
 	fi
+	@if command -v checkov >/dev/null 2>&1; then \
+		printf "  %-20s %-18s %-12s %s\n" "checkov" "$$(checkov --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" "latest" "$(if $(filter post,$(TOOL_PHASE)),skipped,skip)"; \
+	else \
+		printf "  %-20s %-18s %-12s %s\n" "checkov" "not installed" "latest" "$(if $(filter post,$(TOOL_PHASE)),installed,install)"; \
+	fi
 	@echo "  ---------------------------------------------------------------"
 endef
 
@@ -67,6 +72,7 @@ bootstrap: ## Install all dev tools and git hooks (run once after clone)
 	if [ "$$OS" = "Darwin" ]; then \
 		echo "  macOS detected — using Homebrew"; \
 		command -v brew >/dev/null 2>&1 || { echo "ERROR: Homebrew not found. Install from https://brew.sh"; exit 1; }; \
+		command -v checkov >/dev/null 2>&1 && echo "  ✓ checkov already installed" || pip3 install --break-system-packages checkov; \
 		for tool in pre-commit gitleaks gosec goreleaser; do \
 			if command -v $$tool >/dev/null 2>&1; then \
 				echo "  ✓ $$tool already installed"; \
@@ -99,6 +105,7 @@ bootstrap: ## Install all dev tools and git hooks (run once after clone)
 			echo "  Linux detected"; \
 		fi; \
 		command -v pre-commit >/dev/null 2>&1 && echo "  ✓ pre-commit already installed" || pip3 install --user pre-commit; \
+		command -v checkov >/dev/null 2>&1 && echo "  ✓ checkov already installed" || pip3 install --user checkov; \
 		command -v gitleaks   >/dev/null 2>&1 && echo "  ✓ gitleaks already installed"   || { \
 			echo "  → installing gitleaks..."; \
 			ARCH=$$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'); \
@@ -171,6 +178,9 @@ security: ## Run security scans (gosec + gitleaks + govulncheck + go mod verify)
 	@echo ""
 	@echo "==> govulncheck: dependency vulnerability scan"
 	govulncheck ./...
+	@echo ""
+	@echo "==> checkov: Terraform IaC scan"
+	checkov --config-file .checkov.yml
 
 tidy: ## Run go mod tidy and verify go.mod/go.sum are clean
 	go mod tidy
