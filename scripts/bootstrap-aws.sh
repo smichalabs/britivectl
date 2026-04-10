@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# bootstrap-aws.sh — creates a least-privilege IAM user for running the bctl docs Terraform
+# bootstrap-aws.sh -- creates the OIDC provider and Terraform IAM role for CI
 # Usage: AWS_ACCESS_KEY_ID=xxx AWS_SECRET_ACCESS_KEY=xxx ./scripts/bootstrap-aws.sh
-# Or run interactively — it will prompt for credentials if not set.
+# Or run interactively -- it will prompt for credentials if not set.
+#
+# This script is idempotent and only needs to be run once per AWS account.
+# After running, set the AWS_TERRAFORM_ROLE_ARN GitHub secret and CI handles
+# everything via OIDC -- no static keys needed.
 set -euo pipefail
 
-POLICY_NAME="bctl-docs-terraform"
-USER_NAME="terraform-cli"
+ROLE_NAME="bctl-terraform"
+POLICY_NAME="bctl-terraform-infra"
 STATE_BUCKET="smichalabs-terraform-state"
+GITHUB_REPO="smichalabs/britivectl"
+OIDC_URL="https://token.actions.githubusercontent.com"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,8 +27,8 @@ warn()    { echo -e "${YELLOW}  !${NC} $*"; }
 fatal()   { echo -e "${RED}  ✗${NC} $*" >&2; exit 1; }
 
 echo ""
-echo -e "${BOLD}bctl docs — AWS bootstrap${NC}"
-echo "  Creates a least-privilege IAM user for running Terraform."
+echo -e "${BOLD}bctl -- AWS bootstrap (OIDC)${NC}"
+echo "  Creates the GitHub OIDC provider and Terraform IAM role for CI."
 echo ""
 
 # ── Prompt for root credentials if not in environment ─────────────────────────
@@ -45,81 +51,110 @@ export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 # Verify credentials work
 info "Verifying root credentials..."
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) \
-  || fatal "Could not authenticate — check your credentials"
+  || fatal "Could not authenticate -- check your credentials"
 success "Authenticated (account: ${ACCOUNT_ID})"
 echo ""
 
-# ── Least-privilege policy document ───────────────────────────────────────────
+# ── Create Terraform state bucket ─────────────────────────────────────────────
 
-POLICY_DOC=$(cat <<'POLICY'
+info "Creating Terraform state bucket '${STATE_BUCKET}'..."
+if aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
+  warn "State bucket '${STATE_BUCKET}' already exists -- skipping"
+else
+  aws s3api create-bucket --bucket "${STATE_BUCKET}" --region us-east-1 >/dev/null
+  aws s3api put-bucket-versioning --bucket "${STATE_BUCKET}" \
+    --versioning-configuration Status=Enabled >/dev/null
+  success "Created state bucket '${STATE_BUCKET}' with versioning"
+fi
+
+# ── Create GitHub OIDC provider ───────────────────────────────────────────────
+
+info "Checking GitHub OIDC provider..."
+EXISTING_OIDC=$(aws iam list-open-id-connect-providers \
+  --query "OpenIDConnectProviderList[?ends_with(Arn, '/token.actions.githubusercontent.com')].Arn" \
+  --output text 2>/dev/null || true)
+
+if [[ -n "${EXISTING_OIDC}" ]]; then
+  OIDC_ARN="${EXISTING_OIDC}"
+  warn "OIDC provider already exists -- skipping (${OIDC_ARN})"
+else
+  OIDC_ARN=$(aws iam create-open-id-connect-provider \
+    --url "${OIDC_URL}" \
+    --client-id-list "sts.amazonaws.com" \
+    --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1" \
+    --query "OpenIDConnectProviderArn" --output text)
+  success "Created OIDC provider (${OIDC_ARN})"
+fi
+
+# ── Create Terraform IAM role ─────────────────────────────────────────────────
+
+TRUST_POLICY=$(cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "${OIDC_ARN}"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringLike": {
+        "token.actions.githubusercontent.com:sub": "repo:${GITHUB_REPO}:*"
+      },
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      }
+    }
+  }]
+}
+EOF
+)
+
+info "Creating IAM role '${ROLE_NAME}'..."
+if aws iam get-role --role-name "${ROLE_NAME}" &>/dev/null; then
+  warn "Role '${ROLE_NAME}' already exists -- updating trust policy"
+  aws iam update-assume-role-policy --role-name "${ROLE_NAME}" \
+    --policy-document "${TRUST_POLICY}" >/dev/null
+else
+  aws iam create-role --role-name "${ROLE_NAME}" \
+    --assume-role-policy-document "${TRUST_POLICY}" >/dev/null
+  success "Created IAM role '${ROLE_NAME}'"
+fi
+
+ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+
+# ── Attach infrastructure policy ─────────────────────────────────────────────
+
+INFRA_POLICY=$(cat <<'POLICY'
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "S3Docs",
+      "Sid": "S3",
       "Effect": "Allow",
-      "Action": [
-        "s3:Get*",
-        "s3:List*",
-        "s3:CreateBucket",
-        "s3:DeleteBucket",
-        "s3:PutBucketPolicy",
-        "s3:DeleteBucketPolicy",
-        "s3:PutBucketPublicAccessBlock",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
+      "Action": "s3:*",
       "Resource": "*"
     },
     {
       "Sid": "CloudFront",
       "Effect": "Allow",
-      "Action": [
-        "cloudfront:CreateDistribution",
-        "cloudfront:GetDistribution",
-        "cloudfront:UpdateDistribution",
-        "cloudfront:DeleteDistribution",
-        "cloudfront:TagResource",
-        "cloudfront:ListTagsForResource",
-        "cloudfront:CreateOriginAccessControl",
-        "cloudfront:GetOriginAccessControl",
-        "cloudfront:UpdateOriginAccessControl",
-        "cloudfront:DeleteOriginAccessControl",
-        "cloudfront:ListOriginAccessControls",
-        "cloudfront:CreateInvalidation",
-        "cloudfront:ListDistributions",
-        "cloudfront:CreateFunction",
-        "cloudfront:UpdateFunction",
-        "cloudfront:DeleteFunction",
-        "cloudfront:DescribeFunction",
-        "cloudfront:PublishFunction",
-        "cloudfront:GetFunction"
-      ],
+      "Action": "cloudfront:*",
       "Resource": "*"
     },
     {
       "Sid": "ACM",
       "Effect": "Allow",
-      "Action": [
-        "acm:RequestCertificate",
-        "acm:DescribeCertificate",
-        "acm:DeleteCertificate",
-        "acm:ListTagsForCertificate",
-        "acm:AddTagsToCertificate"
-      ],
+      "Action": "acm:*",
       "Resource": "*"
     },
     {
-      "Sid": "IAMOIDCAndRole",
+      "Sid": "IAM",
       "Effect": "Allow",
       "Action": [
-        "iam:CreateOpenIDConnectProvider",
-        "iam:GetOpenIDConnectProvider",
-        "iam:DeleteOpenIDConnectProvider",
-        "iam:TagOpenIDConnectProvider",
         "iam:CreateRole",
         "iam:GetRole",
         "iam:DeleteRole",
+        "iam:UpdateRole",
         "iam:TagRole",
         "iam:UntagRole",
         "iam:ListRoleTags",
@@ -128,26 +163,28 @@ POLICY_DOC=$(cat <<'POLICY'
         "iam:DeleteRolePolicy",
         "iam:ListRolePolicies",
         "iam:ListAttachedRolePolicies",
-        "iam:PassRole"
+        "iam:PassRole",
+        "iam:GetOpenIDConnectProvider",
+        "iam:ListOpenIDConnectProviders"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "TerraformState",
+      "Sid": "SNS",
+      "Effect": "Allow",
+      "Action": "sns:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatch",
       "Effect": "Allow",
       "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket",
-        "s3:CreateBucket",
-        "s3:GetBucketVersioning",
-        "s3:PutBucketVersioning"
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:ListTagsForResource"
       ],
-      "Resource": [
-        "arn:aws:s3:::smichalabs-terraform-state",
-        "arn:aws:s3:::smichalabs-terraform-state/*"
-      ]
+      "Resource": "*"
     },
     {
       "Sid": "STS",
@@ -160,95 +197,52 @@ POLICY_DOC=$(cat <<'POLICY'
 POLICY
 )
 
-# ── Create Terraform state bucket ─────────────────────────────────────────────
-
-info "Creating Terraform state bucket '${STATE_BUCKET}'..."
-if aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
-  warn "State bucket '${STATE_BUCKET}' already exists — skipping"
-else
-  aws s3api create-bucket --bucket "${STATE_BUCKET}" --region us-east-1 >/dev/null
-  aws s3api put-bucket-versioning --bucket "${STATE_BUCKET}" \
-    --versioning-configuration Status=Enabled >/dev/null
-  success "Created state bucket '${STATE_BUCKET}' with versioning"
-fi
-
-# ── Create IAM user ────────────────────────────────────────────────────────────
-
-info "Creating IAM user '${USER_NAME}'..."
-if aws iam get-user --user-name "${USER_NAME}" &>/dev/null; then
-  warn "User '${USER_NAME}' already exists — skipping creation"
-else
-  aws iam create-user --user-name "${USER_NAME}" >/dev/null
-  success "Created IAM user '${USER_NAME}'"
-fi
-
-# ── Create and attach policy ───────────────────────────────────────────────────
-
-info "Creating least-privilege policy '${POLICY_NAME}'..."
+info "Attaching infrastructure policy..."
 POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/${POLICY_NAME}"
 
 if aws iam get-policy --policy-arn "${POLICY_ARN}" &>/dev/null; then
-  warn "Policy '${POLICY_NAME}' already exists — updating..."
+  warn "Policy '${POLICY_NAME}' already exists -- updating..."
   VERSION_ID=$(aws iam list-policy-versions --policy-arn "${POLICY_ARN}" \
     --query 'Versions[?!IsDefaultVersion].VersionId' --output text | head -1)
   if [[ -n "${VERSION_ID}" ]]; then
     aws iam delete-policy-version --policy-arn "${POLICY_ARN}" --version-id "${VERSION_ID}" >/dev/null
   fi
   aws iam create-policy-version --policy-arn "${POLICY_ARN}" \
-    --policy-document "${POLICY_DOC}" --set-as-default >/dev/null
+    --policy-document "${INFRA_POLICY}" --set-as-default >/dev/null
 else
   POLICY_ARN=$(aws iam create-policy \
     --policy-name "${POLICY_NAME}" \
-    --policy-document "${POLICY_DOC}" \
+    --policy-document "${INFRA_POLICY}" \
     --query 'Policy.Arn' --output text)
 fi
 success "Policy ready: ${POLICY_ARN}"
 
-info "Attaching policy to user..."
-aws iam attach-user-policy --user-name "${USER_NAME}" --policy-arn "${POLICY_ARN}"
-success "Policy attached"
-
-# ── Create access key (skip if one already exists) ────────────────────────────
-
-info "Checking access keys for '${USER_NAME}'..."
-KEY_COUNT=$(aws iam list-access-keys --user-name "${USER_NAME}" \
-  --query 'length(AccessKeyMetadata)' --output text)
-
-if [[ "${KEY_COUNT}" -ge 1 ]]; then
-  warn "Access key already exists — skipping creation (delete old keys manually if needed)"
-  KEY_ID="(existing — check aws configure --profile terraform)"
-  KEY_SECRET="(existing)"
-else
-  info "Creating access key for '${USER_NAME}'..."
-  KEY_OUTPUT=$(aws iam create-access-key --user-name "${USER_NAME}")
-  KEY_ID=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['AccessKeyId'])")
-  KEY_SECRET=$(echo "${KEY_OUTPUT}" | python3 -c "import sys,json; d=json.load(sys.stdin)['AccessKey']; print(d['SecretAccessKey'])")
-  success "Access key created"
-fi
+aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}" 2>/dev/null || true
+success "Policy attached to role"
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 
 echo ""
 echo -e "${BOLD}==> Done. Next steps:${NC}"
 echo ""
-echo "  1. Configure local CLI profile:"
-echo "     aws configure --profile terraform"
-echo -e "     ${YELLOW}AWS Access Key ID:${NC}     ${KEY_ID}"
-echo -e "     ${YELLOW}AWS Secret Access Key:${NC} ${KEY_SECRET}"
-echo -e "     ${YELLOW}Default region:${NC}        us-east-1"
+echo "  1. Set the GitHub repo secret:"
+echo -e "     ${YELLOW}AWS_TERRAFORM_ROLE_ARN${NC} = ${ROLE_ARN}"
 echo ""
-echo "  2. Add GitHub repo secrets (Settings → Secrets → Actions):"
-echo -e "     ${YELLOW}TF_AWS_ACCESS_KEY_ID${NC}     = ${KEY_ID}"
-echo -e "     ${YELLOW}TF_AWS_SECRET_ACCESS_KEY${NC} = ${KEY_SECRET}"
+echo "     Or run:"
+echo "     gh secret set AWS_TERRAFORM_ROLE_ARN --body '${ROLE_ARN}'"
 echo ""
-echo "  3. Push to main — CI will run terraform apply automatically"
+echo "  2. Remove old static key secrets if they exist:"
+echo "     gh secret delete TF_AWS_ACCESS_KEY_ID"
+echo "     gh secret delete TF_AWS_SECRET_ACCESS_KEY"
 echo ""
-echo -e "${BOLD}==> After terraform apply:${NC}"
-echo "  1. Add DNS records from 'terraform output acm_validation_records' to Namecheap"
-echo "  2. Add GitHub repo secrets from 'terraform output'"
-echo "  3. Delete this user's access key (you won't need it again):"
+echo "  3. Remove Terraform state reference to the OIDC provider:"
+echo "     cd infra && terraform state rm aws_iam_openid_connect_provider.github"
 echo ""
-echo "  aws iam delete-access-key --user-name ${USER_NAME} --access-key-id ${KEY_ID} --profile terraform"
+echo "  4. Delete the old terraform-cli IAM user (if it exists):"
+echo "     aws iam detach-user-policy --user-name terraform-cli --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/bctl-docs-terraform"
+echo "     aws iam list-access-keys --user-name terraform-cli --query 'AccessKeyMetadata[].AccessKeyId' --output text | xargs -I{} aws iam delete-access-key --user-name terraform-cli --access-key-id {}"
+echo "     aws iam delete-user --user-name terraform-cli"
+echo "     aws iam delete-policy --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/bctl-docs-terraform"
 echo ""
-warn "Store the key and secret above securely — this is the only time they are shown."
+echo "  5. Push the code changes -- CI will use OIDC from now on."
 echo ""

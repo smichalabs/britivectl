@@ -209,12 +209,8 @@ resource "aws_cloudfront_distribution" "docs" {
 
 # ── IAM role for GitHub Actions (OIDC) ────────────────────────────────────────
 
-data "aws_caller_identity" "current" {}
-
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
 }
 
 resource "aws_iam_role" "docs_deploy" {
@@ -225,7 +221,7 @@ resource "aws_iam_role" "docs_deploy" {
     Statement = [{
       Effect = "Allow"
       Principal = {
-        Federated = aws_iam_openid_connect_provider.github.arn
+        Federated = data.aws_iam_openid_connect_provider.github.arn
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
