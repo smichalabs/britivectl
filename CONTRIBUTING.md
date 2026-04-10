@@ -5,11 +5,11 @@ Thank you for your interest in contributing to bctl! This document explains how 
 ## Getting Started
 
 1. Fork the repository and clone your fork.
-2. Install Go 1.22 or later.
+2. Install Go 1.25 or later.
 3. Install development tools:
 
 ```bash
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 brew install goreleaser pre-commit
 pre-commit install
 ```
@@ -82,7 +82,7 @@ docs(readme): add EKS connect example
 4. Write tests in the appropriate `_test.go` files.
 5. Add a doc page at `docs/commands/<name>.md`.
 
-See [CLAUDE.md](CLAUDE.md) for the full step-by-step guide.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the full step-by-step guide.
 
 ## Pull Request Process
 
