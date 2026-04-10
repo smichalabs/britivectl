@@ -84,9 +84,7 @@ resource "aws_cloudfront_function" "rewrite_index" {
     async function handler(event) {
       var request = event.request;
       var uri = request.uri;
-      if (uri === '/') {
-        request.uri = '/${var.docs_path}/index.html';
-      } else if (uri.endsWith('/')) {
+      if (uri.endsWith('/')) {
         request.uri += 'index.html';
       } else if (!uri.includes('.')) {
         request.uri += '/index.html';
@@ -100,7 +98,6 @@ resource "aws_cloudfront_function" "rewrite_index" {
 
 resource "aws_cloudfront_distribution" "docs" {
   enabled             = true
-  default_root_object = "${var.docs_path}/index.html"
   aliases             = [var.domain]
   price_class         = "PriceClass_100" # US + Europe only — cheapest
 
