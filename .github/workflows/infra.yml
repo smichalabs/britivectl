@@ -13,18 +13,14 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write     # OIDC for AWS
   contents: read
-  pull-requests: write  # post plan output as PR comment
+  pull-requests: write # post plan output as PR comment
 
 jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
-
-    env:
-      AWS_ACCESS_KEY_ID:     ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION:    us-east-1
 
     defaults:
       run:
@@ -32,6 +28,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
