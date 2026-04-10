@@ -43,3 +43,7 @@ skip-check:
 
   # CloudFront access logging -- low-traffic docs site, not worth a logging bucket
   - CKV_AWS_86
+
+  # CloudFront default root object -- intentionally removed; root will be a
+  # separate homepage later, docs live under /utils/bctl/
+  - CKV_AWS_305
