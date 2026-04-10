@@ -84,7 +84,9 @@ resource "aws_cloudfront_function" "rewrite_index" {
     async function handler(event) {
       var request = event.request;
       var uri = request.uri;
-      if (uri.endsWith('/')) {
+      if (uri === '/') {
+        request.uri = '/${var.docs_path}/index.html';
+      } else if (uri.endsWith('/')) {
         request.uri += 'index.html';
       } else if (!uri.includes('.')) {
         request.uri += '/index.html';
