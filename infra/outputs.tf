@@ -33,3 +33,8 @@ output "cloudfront_distribution_id" {
   description = "Set this as DOCS_CF_DISTRIBUTION_ID secret in the GitHub repo"
   value       = aws_cloudfront_distribution.docs.id
 }
+
+output "sns_alerts_topic_arn" {
+  description = "SNS topic ARN for infrastructure alerts"
+  value       = aws_sns_topic.alerts.arn
+}

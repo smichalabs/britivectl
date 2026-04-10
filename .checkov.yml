@@ -38,12 +38,12 @@ skip-check:
   # CloudFront geo restriction -- public docs, no geo-blocking needed
   - CKV_AWS_374
 
-  # CloudFront response headers policy -- static site, default headers are fine
-  - CKV2_AWS_32
-
   # CloudFront access logging -- low-traffic docs site, not worth a logging bucket
   - CKV_AWS_86
 
   # CloudFront default root object -- intentionally removed; root will be a
   # separate homepage later, docs live under /utils/bctl/
   - CKV_AWS_305
+
+  # SNS encryption -- topic sends non-sensitive alert notifications only
+  - CKV_AWS_26
