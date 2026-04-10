@@ -1,10 +1,91 @@
-# bctl — Britive CLI
+# bctl -- Britive CLI
 
 [![CI](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml/badge.svg)](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A polished CLI for [Britive](https://www.britive.com) JIT access management.
 Replace manual web UI workflows and fragile scripts with a single fast binary.
+
+Full docs: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)
+
+## Cloud support
+
+| Cloud | Status | Cluster access |
+|---|---|---|
+| AWS | Available now | EKS via `bctl eks connect` |
+| GCP | Coming soon | GKE via `bctl gke connect` |
+| Azure | Coming soon | AKS via `bctl aks connect` |
+
+---
+
+## AWS credentials
+
+**Web UI (manual)**
+
+1. Log into the Britive web portal
+2. Navigate apps -> environment -> profile
+3. Click checkout, pick a duration
+4. Copy three values from the popup: access key ID, secret access key, session token
+5. Paste into `~/.aws/credentials` under a profile name (or `export` in your shell)
+6. Run `aws ...`
+7. Credentials expire (typically 1 hour) -- repeat from step 1
+
+**pybritive**
+
+```bash
+pip install pybritive[aws]
+pybritive configure tenant -t acme
+pybritive login
+pybritive checkout "AWS/Sandbox/Developer" -m integrate
+aws s3 ls --profile dev
+```
+
+Works, but you type the full Britive path every time. AWS integration requires the `-m integrate` flag and the Python install brings ~100 MB of dependencies.
+
+**bctl**
+
+```bash
+brew install smichalabs/tap/bctl
+bctl init
+bctl login
+bctl profiles sync
+bctl checkout dev
+aws s3 ls --profile dev
+```
+
+Credentials land in `~/.aws/credentials` automatically. Use short aliases (`dev`) instead of full Britive paths. `bctl status` shows what's checked out. Single static binary, no Python runtime.
+
+---
+
+## EKS access
+
+**Web UI (manual)**
+
+1. Log into the Britive web portal, check out the profile
+2. Copy AWS credentials into `~/.aws/credentials`
+3. Run `aws eks update-kubeconfig --region <region> --name <cluster> --profile <profile>`
+4. Repeat step 3 for every cluster on the profile
+5. Run `kubectl ...`
+6. Credentials expire -- repeat from step 1
+
+**pybritive**
+
+```bash
+pybritive checkout "AWS/Sandbox/Developer" -m integrate
+aws eks update-kubeconfig --region us-east-1 --name my-cluster --profile dev
+kubectl get pods
+```
+
+Two manual steps. pybritive does the credential checkout, but you still wire up `aws eks update-kubeconfig` yourself for every cluster.
+
+**bctl**
+
+```bash
+bctl eks connect dev
+kubectl get pods
+```
+
+One command. bctl checks out credentials and runs `aws eks update-kubeconfig` for every cluster on the profile, in the right region, with the right profile name. Credentials and kubeconfig stay in sync.
 
 ---
 
