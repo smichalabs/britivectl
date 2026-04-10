@@ -98,7 +98,6 @@ resource "aws_cloudfront_function" "rewrite_index" {
 
 resource "aws_cloudfront_distribution" "docs" {
   enabled             = true
-  default_root_object = "${var.docs_path}/index.html"
   aliases             = [var.domain]
   price_class         = "PriceClass_100" # US + Europe only — cheapest
 
