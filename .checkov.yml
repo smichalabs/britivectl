@@ -47,3 +47,9 @@ skip-check:
 
   # SNS encryption -- topic sends non-sensitive alert notifications only
   - CKV_AWS_26
+
+  # Route 53 DNSSEC -- not required for a static docs site
+  - CKV2_AWS_38
+
+  # Route 53 query logging -- low-traffic docs site, not worth the cost
+  - CKV2_AWS_39

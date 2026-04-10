@@ -13,6 +13,40 @@ provider "aws" {
 }
 
 
+# ── Route 53 ───────────────────────────────────────────────────────────────────
+
+resource "aws_route53_zone" "main" {
+  name = var.domain
+}
+
+resource "aws_route53_record" "apex" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = var.domain
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.docs.domain_name
+    zone_id                = aws_cloudfront_distribution.docs.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "acm_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.docs.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  zone_id = aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 300
+  records = [each.value.record]
+}
+
 # ── S3 bucket ──────────────────────────────────────────────────────────────────
 
 resource "aws_s3_bucket" "docs" {
@@ -96,7 +130,8 @@ resource "aws_acm_certificate" "docs" {
 # ── ACM certificate validation (waits until DNS records are added) ─────────────
 
 resource "aws_acm_certificate_validation" "docs" {
-  certificate_arn = aws_acm_certificate.docs.arn
+  certificate_arn         = aws_acm_certificate.docs.arn
+  validation_record_fqdns = [for r in aws_route53_record.acm_validation : r.fqdn]
 }
 
 # ── CloudFront function: rewrite /path/to/dir → /path/to/dir/index.html ────────
