@@ -11,6 +11,14 @@ bctl status              # see what's checked out and when it expires
 
 ---
 
+## Prerequisites
+
+- An active [Britive](https://www.britive.com) tenant with JIT access profiles configured
+- A valid Britive user account with permissions to check out profiles
+- bctl uses the publicly available [Britive REST API](https://docs.britive.com/apidocs) -- no special entitlements required
+
+---
+
 ## Install
 
 === "macOS"
