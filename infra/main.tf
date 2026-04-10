@@ -27,6 +27,17 @@ resource "aws_s3_bucket_public_access_block" "docs" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "docs" {
+  bucket = aws_s3_bucket.docs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
 # ── CloudFront OAC ─────────────────────────────────────────────────────────────
 
 resource "aws_cloudfront_origin_access_control" "docs" {
@@ -40,20 +51,34 @@ resource "aws_s3_bucket_policy" "docs" {
   bucket = aws_s3_bucket.docs.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Sid    = "AllowCloudFront"
-      Effect = "Allow"
-      Principal = {
-        Service = "cloudfront.amazonaws.com"
-      }
-      Action   = "s3:GetObject"
-      Resource = "${aws_s3_bucket.docs.arn}/*"
-      Condition = {
-        StringEquals = {
-          "AWS:SourceArn" = aws_cloudfront_distribution.docs.arn
+    Statement = [
+      {
+        Sid    = "AllowCloudFront"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.docs.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.docs.arn
+          }
+        }
+      },
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = [aws_s3_bucket.docs.arn, "${aws_s3_bucket.docs.arn}/*"]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
         }
       }
-    }]
+    ]
   })
 }
 
@@ -94,6 +119,40 @@ resource "aws_cloudfront_function" "rewrite_index" {
   EOT
 }
 
+# ── CloudFront response headers (security) ─────────────────────────────────────
+
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "docs-security-headers"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 63072000
+      include_subdomains         = true
+      preload                    = true
+      override                   = true
+    }
+
+    content_type_options {
+      override = true
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+
+    content_security_policy {
+      content_security_policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:"
+      override                = true
+    }
+  }
+}
+
 # ── CloudFront distribution ────────────────────────────────────────────────────
 
 resource "aws_cloudfront_distribution" "docs" {
@@ -108,11 +167,12 @@ resource "aws_cloudfront_distribution" "docs" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
+    target_origin_id           = "s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
 
     function_association {
       event_type   = "viewer-request"
@@ -199,4 +259,59 @@ resource "aws_iam_role_policy" "docs_deploy" {
       }
     ]
   })
+}
+
+# ── Alerting (SNS + CloudWatch) ────────────────────────────────────────────────
+
+resource "aws_sns_topic" "alerts" {
+  name = "docs-infra-alerts"
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  for_each  = toset(var.alert_emails)
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = each.value
+}
+
+resource "aws_cloudwatch_metric_alarm" "cf_5xx" {
+  alarm_name          = "docs-cloudfront-5xx-errors"
+  alarm_description   = "CloudFront 5xx error rate exceeded 5% for 10 minutes"
+  namespace           = "AWS/CloudFront"
+  metric_name         = "5xxErrorRate"
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DistributionId = aws_cloudfront_distribution.docs.id
+    Region         = "Global"
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "cf_4xx" {
+  alarm_name          = "docs-cloudfront-4xx-anomaly"
+  alarm_description   = "CloudFront 4xx error rate exceeded 25% for 15 minutes"
+  namespace           = "AWS/CloudFront"
+  metric_name         = "4xxErrorRate"
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 3
+  threshold           = 25
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DistributionId = aws_cloudfront_distribution.docs.id
+    Region         = "Global"
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
 }

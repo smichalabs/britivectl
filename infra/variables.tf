@@ -15,3 +15,9 @@ variable "docs_path" {
   type        = string
   default     = "utils/bctl"
 }
+
+variable "alert_emails" {
+  description = "Email addresses for infrastructure alerts"
+  type        = list(string)
+  default     = ["sajeeve@gmail.com", "saravanakumar.palaniammal@gmail.com"]
+}
