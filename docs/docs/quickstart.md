@@ -1,5 +1,8 @@
 # Quick Start
 
+!!! info "Prerequisites"
+    You need an active [Britive](https://www.britive.com) tenant and a user account with access to at least one JIT profile. bctl talks to the public [Britive API](https://docs.britive.com/apidocs) -- your tenant admin does not need to enable anything extra.
+
 ## 1. Set up your tenant
 
 ```bash
