@@ -52,3 +52,19 @@ repos:
         args: [-quiet, -exclude-generated, "-exclude=G104,G204,G302,G304", ./...]
         types: [go]
         pass_filenames: false
+
+      # -- Terraform IaC scanning -------------------------------------------------
+      - id: checkov
+        name: checkov (Terraform security scan)
+        entry: checkov --config-file .checkov.yml
+        language: system
+        files: ^infra/
+        pass_filenames: false
+
+      # -- Conventional commit enforcement ----------------------------------------
+      - id: conventional-commit
+        name: conventional commit message
+        entry: scripts/check-conventional-commit.sh
+        language: script
+        stages: [commit-msg]
+        always_run: true
