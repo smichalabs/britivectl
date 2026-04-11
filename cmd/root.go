@@ -81,6 +81,7 @@ func commandChoices() []resolver.CommandChoice {
 		"logout",
 		"init",
 		"doctor",
+		"issue",
 		"config",
 		"update",
 		"version",
@@ -136,6 +137,7 @@ func init() {
 	rootCmd.AddCommand(newEKSCmd())
 	rootCmd.AddCommand(newConfigCmd())
 	rootCmd.AddCommand(newDoctorCmd())
+	rootCmd.AddCommand(newIssueCmd())
 	rootCmd.AddCommand(newUpdateCmd())
 	rootCmd.AddCommand(newCompletionCmd())
 }

@@ -57,6 +57,7 @@ The first run on a new machine prompts you once for your Britive tenant and open
 - [Commands](commands/checkout.md) -- full reference for every subcommand
 - [EKS Guide](eks.md) -- using bctl with Amazon EKS
 - [Comparison](comparison.md) -- bctl vs the Britive web UI vs pybritive
+- [Feedback & issues](feedback.md) -- how to file a bug or feature request with `bctl issue`
 
 ## License
 

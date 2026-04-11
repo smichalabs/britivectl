@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
+
+	"github.com/smichalabs/britivectl/internal/system"
 )
 
 // JWTExpiry decodes a JWT (without verification) and returns the exp claim, or 0 on failure.
@@ -182,25 +182,9 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// openBrowser opens the specified URL in the default browser.
-// The context controls cancellation for the launched process.
+// openBrowser opens the specified URL in the default browser. Wraps the
+// shared system.OpenBrowser helper so the existing call sites in this
+// package and tests do not change shape.
 func openBrowser(ctx context.Context, url string) error {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = "open"
-		args = []string{url}
-	case "linux":
-		cmd = "xdg-open"
-		args = []string{url}
-	case "windows":
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler", url}
-	default:
-		return fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
-	}
-
-	return exec.CommandContext(ctx, cmd, args...).Start() //nolint:gosec // cmd and args are hardcoded per OS, not user input
+	return system.OpenBrowser(ctx, url)
 }
