@@ -22,6 +22,9 @@ Done.
 !!! tip "First run"
     On a brand-new machine, the very first `bctl` also asks for your tenant name and opens your browser for SSO. Takes about 20 seconds, you only do it once.
 
+!!! info "Sign in once, not every time"
+    bctl auto-refreshes your Britive session in the background. You sign in once per day at most, not on every command. And repeat checkouts of the same profile within the credential lifetime are instant -- bctl skips the Britive API entirely. See [Sessions & caching](sessions.md).
+
 ---
 
 ## Fuzzy search tips

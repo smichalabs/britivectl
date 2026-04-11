@@ -73,6 +73,8 @@ aws s3 ls --profile aws-admin-prod
 
 Done. The first time you run bctl on a fresh machine it walks you through tenant setup, opens your browser for SSO, and fetches your profile list. Every run after that skips to the picker.
 
+bctl also **auto-refreshes your Britive session** in the background, so you sign in once a day at most -- not on every command. And **repeat checkouts of the same profile are instant**: as long as the credentials in `~/.aws/credentials` still have life, bctl skips the Britive API entirely. Pass `--force` if you want a fresh checkout anyway. Full details in [Sessions & caching](https://smichalabs.dev/utils/bctl/sessions/).
+
 ### Skip the picker if you know what you want
 
 ```bash
