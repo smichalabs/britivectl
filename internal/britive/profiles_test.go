@@ -1,6 +1,7 @@
 package britive
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -82,7 +83,7 @@ func TestListAccess_Success(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	entries, err := c.ListAccess()
+	entries, err := c.ListAccess(context.Background())
 	if err != nil {
 		t.Fatalf("ListAccess() returned unexpected error: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestListAccess_Empty(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	entries, err := c.ListAccess()
+	entries, err := c.ListAccess(context.Background())
 	if err != nil {
 		t.Fatalf("ListAccess() returned unexpected error: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestListAccess_Error(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	_, err := c.ListAccess()
+	_, err := c.ListAccess(context.Background())
 	if err == nil {
 		t.Fatal("expected error from ListAccess() on 500 response, got nil")
 	}

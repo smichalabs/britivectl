@@ -1,6 +1,8 @@
 package britive
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,7 +34,7 @@ func TestGet_Success(t *testing.T) {
 	}))
 
 	var result map[string]string
-	if err := c.get("/some/path", &result); err != nil {
+	if err := c.get(context.Background(), "/some/path", &result); err != nil {
 		t.Fatalf("get() error: %v", err)
 	}
 	if result["key"] != "value" {
@@ -47,7 +49,7 @@ func TestGet_ServerError(t *testing.T) {
 	}))
 
 	var result map[string]string
-	err := c.get("/some/path", &result)
+	err := c.get(context.Background(), "/some/path", &result)
 	if err == nil {
 		t.Fatal("expected error for 500 response, got nil")
 	}
@@ -63,7 +65,7 @@ func TestGet_InvalidJSON(t *testing.T) {
 	}))
 
 	var result map[string]string
-	if err := c.get("/some/path", &result); err == nil {
+	if err := c.get(context.Background(), "/some/path", &result); err == nil {
 		t.Fatal("expected error for invalid JSON response, got nil")
 	}
 }
@@ -84,7 +86,7 @@ func TestPost_Success(t *testing.T) {
 
 	body := map[string]string{"hello": "world"}
 	var result map[string]string
-	if err := c.post("/some/path", body, &result); err != nil {
+	if err := c.post(context.Background(), "/some/path", body, &result); err != nil {
 		t.Fatalf("post() error: %v", err)
 	}
 	if receivedMethod != http.MethodPost {
@@ -106,7 +108,7 @@ func TestPost_NilBody(t *testing.T) {
 	}))
 
 	var result map[string]interface{}
-	if err := c.post("/some/path", nil, &result); err != nil {
+	if err := c.post(context.Background(), "/some/path", nil, &result); err != nil {
 		t.Fatalf("post() with nil body error: %v", err)
 	}
 }
@@ -117,7 +119,7 @@ func TestPost_Error(t *testing.T) {
 		_, _ = w.Write([]byte("bad request"))
 	}))
 
-	if err := c.post("/some/path", nil, nil); err == nil {
+	if err := c.post(context.Background(), "/some/path", nil, nil); err == nil {
 		t.Fatal("expected error for 400 response, got nil")
 	}
 }
@@ -130,7 +132,7 @@ func TestSetHeaders(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	_ = c.get("/some/path", nil)
+	_ = c.get(context.Background(), "/some/path", nil)
 
 	if capturedReq == nil {
 		t.Fatal("no request was received by the handler")
@@ -155,7 +157,7 @@ func TestParseResponse_NoBody(t *testing.T) {
 		// Write no body.
 	}))
 
-	if err := c.get("/some/path", nil); err != nil {
+	if err := c.get(context.Background(), "/some/path", nil); err != nil {
 		t.Fatalf("get() with no body and nil out error: %v", err)
 	}
 }
@@ -166,7 +168,7 @@ func TestParseResponse_Error(t *testing.T) {
 		_, _ = w.Write([]byte("forbidden"))
 	}))
 
-	if err := c.get("/some/path", nil); err == nil {
+	if err := c.get(context.Background(), "/some/path", nil); err == nil {
 		t.Fatal("expected error for non-2xx response, got nil")
 	}
 }
@@ -180,7 +182,7 @@ func TestPing_Success(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	if err := c.Ping(); err != nil {
+	if err := c.Ping(context.Background()); err != nil {
 		t.Fatalf("Ping() error: %v", err)
 	}
 }
@@ -190,12 +192,40 @@ func TestPing_Unauthorized(t *testing.T) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
 
-	err := c.Ping()
+	err := c.Ping(context.Background())
 	if err == nil {
 		t.Fatal("expected error for 401 response, got nil")
 	}
-	if !strings.Contains(strings.ToLower(err.Error()), "unauthorized") {
-		t.Errorf("error %q does not contain 'unauthorized'", err.Error())
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("errors.Is(err, ErrUnauthorized) = false, want true; err = %v", err)
+	}
+}
+
+func TestGet_Unauthorized_ReturnsSentinel(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("token invalid"))
+	}))
+
+	err := c.get(context.Background(), "/api/anything", nil)
+	if err == nil {
+		t.Fatal("expected error for 401 response, got nil")
+	}
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("errors.Is(err, ErrUnauthorized) = false, want true; err = %v", err)
+	}
+}
+
+func TestGet_ContextCanceled(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before making the call
+
+	if err := c.get(ctx, "/api/anything", nil); err == nil {
+		t.Fatal("expected error for canceled context, got nil")
 	}
 }
 
@@ -204,7 +234,7 @@ func TestPing_ServerError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 
-	if err := c.Ping(); err == nil {
+	if err := c.Ping(context.Background()); err == nil {
 		t.Fatal("expected error for 500 response, got nil")
 	}
 }
@@ -212,7 +242,7 @@ func TestPing_ServerError(t *testing.T) {
 func TestGet_InvalidURL(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = "://invalid" // triggers NewRequestWithContext parse error
-	if err := c.get("/path", nil); err == nil {
+	if err := c.get(context.Background(), "/path", nil); err == nil {
 		t.Fatal("expected error for invalid URL, got nil")
 	}
 }
@@ -222,7 +252,7 @@ func TestGet_ClosedServer(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = ts.URL
 	ts.Close()
-	if err := c.get("/path", nil); err == nil {
+	if err := c.get(context.Background(), "/path", nil); err == nil {
 		t.Fatal("expected error for closed server, got nil")
 	}
 }
@@ -230,7 +260,7 @@ func TestGet_ClosedServer(t *testing.T) {
 func TestPost_InvalidURL(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = "://invalid"
-	if err := c.post("/path", nil, nil); err == nil {
+	if err := c.post(context.Background(), "/path", nil, nil); err == nil {
 		t.Fatal("expected error for invalid URL, got nil")
 	}
 }
@@ -240,7 +270,7 @@ func TestPost_ClosedServer(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = ts.URL
 	ts.Close()
-	if err := c.post("/path", nil, nil); err == nil {
+	if err := c.post(context.Background(), "/path", nil, nil); err == nil {
 		t.Fatal("expected error for closed server, got nil")
 	}
 }
@@ -250,7 +280,7 @@ func TestPost_BadMarshal(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	// channels cannot be JSON-encoded — triggers encode error path
-	if err := c.post("/path", make(chan int), nil); err == nil {
+	if err := c.post(context.Background(), "/path", make(chan int), nil); err == nil {
 		t.Fatal("expected error for unmarshalable body, got nil")
 	}
 }
@@ -258,7 +288,7 @@ func TestPost_BadMarshal(t *testing.T) {
 func TestPing_InvalidURL(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = "://invalid"
-	if err := c.Ping(); err == nil {
+	if err := c.Ping(context.Background()); err == nil {
 		t.Fatal("expected error for invalid URL, got nil")
 	}
 }
@@ -268,7 +298,7 @@ func TestPing_ClosedServer(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = ts.URL
 	ts.Close()
-	if err := c.Ping(); err == nil {
+	if err := c.Ping(context.Background()); err == nil {
 		t.Fatal("expected error for closed server, got nil")
 	}
 }

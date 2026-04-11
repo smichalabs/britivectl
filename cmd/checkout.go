@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/aws"
@@ -29,7 +30,7 @@ The --output flag controls how credentials are presented:
   process   Print AWS credential_process JSON`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCheckout(args[0], eks, outputFmt)
+			return runCheckout(cmd.Context(), args[0], eks, outputFmt)
 		},
 	}
 
@@ -38,7 +39,7 @@ The --output flag controls how credentials are presented:
 	return cmd
 }
 
-func runCheckout(alias string, eks bool, outFmt string) error {
+func runCheckout(ctx context.Context, alias string, eks bool, outFmt string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -49,12 +50,12 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(t)
+	token, err := requireToken(ctx, t)
 	if err != nil {
-		return fmt.Errorf("not logged in — run 'bctl login' first")
+		return err
 	}
 
 	// Resolve alias to britive path
@@ -71,7 +72,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 	}
 
 	client := newAPIClient(t, token)
-	checkedOut, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
+	checkedOut, creds, err := client.Checkout(ctx, profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
@@ -145,7 +146,7 @@ func runCheckout(alias string, eks bool, outFmt string) error {
 		for _, cluster := range profile.EKSClusters {
 			spin2 := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 			spin2.Start()
-			if err := aws.UpdateKubeconfig(cluster, region, awsProfile); err != nil {
+			if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
 				spin2.Fail(fmt.Sprintf("Failed to update kubeconfig for %s: %v", cluster, err))
 			} else {
 				spin2.Success(fmt.Sprintf("Updated kubeconfig for cluster %s", cluster))

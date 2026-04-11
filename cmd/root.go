@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -31,9 +33,11 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 	SilenceUsage: true,
 }
 
-// Execute runs the root command.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+// Execute runs the root command with the given context. The context is
+// propagated to all subcommand handlers via cmd.Context() and should be
+// signal-aware so Ctrl-C cancels in-flight API calls.
+func Execute(ctx context.Context) {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }
@@ -68,18 +72,20 @@ func init() {
 
 // requireToken returns a valid token for the tenant, automatically re-triggering
 // browser login if the stored token has expired. Mirrors PyBritive's behavior.
-func requireToken(tenant string) (string, error) {
+// Returns a wrapped ErrNotLoggedIn if no token is found so callers can use
+// errors.Is for targeted UX.
+func requireToken(ctx context.Context, tenant string) (string, error) {
 	token, err := config.GetToken(tenant)
 	if err != nil {
-		return "", fmt.Errorf("not logged in — run 'bctl login' first")
+		return "", fmt.Errorf("%w: run 'bctl login' first", britive.ErrNotLoggedIn)
 	}
 
 	// Check expiry for Bearer (SSO) tokens
 	if config.GetTokenType(tenant) == "Bearer" {
 		exp := config.GetTokenExpiry(tenant)
 		if exp > 0 && time.Now().Unix() >= exp {
-			output.Info("Session expired — re-authenticating...")
-			newToken, err := britive.AuthWithBrowser(tenant)
+			output.Info("Session expired -- re-authenticating...")
+			newToken, err := britive.AuthWithBrowser(ctx, tenant)
 			if err != nil {
 				return "", fmt.Errorf("re-authentication failed: %w", err)
 			}
@@ -124,7 +130,14 @@ func initConfig() {
 	viper.SetEnvPrefix("BCTL")
 	viper.AutomaticEnv()
 
-	_ = viper.ReadInConfig()
+	// Only swallow "file not found" errors -- first run is legitimate.
+	// Anything else (malformed YAML, permissions, etc) should surface.
+	if err := viper.ReadInConfig(); err != nil {
+		var notFoundErr viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFoundErr) {
+			fmt.Fprintf(os.Stderr, "warning: reading config: %v\n", err)
+		}
+	}
 
 	if noColor {
 		_ = os.Setenv("BCTL_NO_COLOR", "1")

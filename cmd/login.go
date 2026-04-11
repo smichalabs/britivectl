@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/britive"
@@ -21,7 +22,7 @@ func newLoginCmd() *cobra.Command {
 Use --token for API token authentication, or omit it for browser-based SSO.
 The token is stored securely in your OS keychain.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLogin(token)
+			return runLogin(cmd.Context(), token)
 		},
 	}
 
@@ -29,7 +30,7 @@ The token is stored securely in your OS keychain.`,
 	return cmd
 }
 
-func runLogin(token string) error {
+func runLogin(ctx context.Context, token string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -40,7 +41,7 @@ func runLogin(token string) error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
 	var finalToken, tokenType string
@@ -48,15 +49,15 @@ func runLogin(token string) error {
 	if token != "" {
 		// API token auth
 		output.Info("Validating token for tenant %s...", t)
-		if err := britive.AuthWithToken(t, token); err != nil {
+		if err := britive.AuthWithToken(ctx, t, token); err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}
 		finalToken = token
 		tokenType = "TOKEN"
 	} else {
-		// Browser SSO — returns a Bearer JWT
+		// Browser SSO -- returns a Bearer JWT
 		output.Info("Starting browser-based authentication for tenant %s...", t)
-		tok, err := britive.AuthWithBrowser(t)
+		tok, err := britive.AuthWithBrowser(ctx, t)
 		if err != nil {
 			return fmt.Errorf("browser authentication failed: %w", err)
 		}

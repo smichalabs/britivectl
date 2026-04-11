@@ -1,6 +1,7 @@
 package aws_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +38,7 @@ func TestUpdateKubeconfig_Success(t *testing.T) {
 	makeFakeAWS(t, tmpDir, 0)
 	prependPath(t, tmpDir)
 
-	if err := bctlaws.UpdateKubeconfig("my-cluster", "us-east-1", "my-profile"); err != nil {
+	if err := bctlaws.UpdateKubeconfig(context.Background(), "my-cluster", "us-east-1", "my-profile"); err != nil {
 		t.Errorf("UpdateKubeconfig() unexpected error: %v", err)
 	}
 }
@@ -47,7 +48,7 @@ func TestUpdateKubeconfig_NoRegionNoProfile(t *testing.T) {
 	makeFakeAWS(t, tmpDir, 0)
 	prependPath(t, tmpDir)
 
-	if err := bctlaws.UpdateKubeconfig("my-cluster", "", ""); err != nil {
+	if err := bctlaws.UpdateKubeconfig(context.Background(), "my-cluster", "", ""); err != nil {
 		t.Errorf("UpdateKubeconfig() with no region/profile unexpected error: %v", err)
 	}
 }
@@ -57,7 +58,7 @@ func TestUpdateKubeconfig_Error(t *testing.T) {
 	makeFakeAWS(t, tmpDir, 1)
 	prependPath(t, tmpDir)
 
-	if err := bctlaws.UpdateKubeconfig("bad-cluster", "us-east-1", "my-profile"); err == nil {
+	if err := bctlaws.UpdateKubeconfig(context.Background(), "bad-cluster", "us-east-1", "my-profile"); err == nil {
 		t.Error("UpdateKubeconfig() expected an error when aws exits 1, got nil")
 	}
 }
@@ -67,7 +68,7 @@ func TestUpdateKubeconfig_WithRegionOnly(t *testing.T) {
 	makeFakeAWS(t, tmpDir, 0)
 	prependPath(t, tmpDir)
 
-	if err := bctlaws.UpdateKubeconfig("my-cluster", "ap-southeast-1", ""); err != nil {
+	if err := bctlaws.UpdateKubeconfig(context.Background(), "my-cluster", "ap-southeast-1", ""); err != nil {
 		t.Errorf("UpdateKubeconfig() with region only unexpected error: %v", err)
 	}
 }
@@ -77,7 +78,7 @@ func TestUpdateKubeconfig_WithProfileOnly(t *testing.T) {
 	makeFakeAWS(t, tmpDir, 0)
 	prependPath(t, tmpDir)
 
-	if err := bctlaws.UpdateKubeconfig("my-cluster", "", "my-profile"); err != nil {
+	if err := bctlaws.UpdateKubeconfig(context.Background(), "my-cluster", "", "my-profile"); err != nil {
 		t.Errorf("UpdateKubeconfig() with profile only unexpected error: %v", err)
 	}
 }
