@@ -1,18 +1,19 @@
-package cmd
+package issues_test
 
 import (
 	"net/url"
-	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/smichalabs/britivectl/internal/issues"
 )
 
-func TestBuildIssueURL_BugTemplate(t *testing.T) {
-	got := buildIssueURL("bug.yml", "hello world")
+func TestBuildURL_BugTemplate(t *testing.T) {
+	got := issues.BuildURL("bug.yml", "hello world")
 
 	parsed, err := url.Parse(got)
 	if err != nil {
-		t.Fatalf("buildIssueURL produced an unparseable URL: %v", err)
+		t.Fatalf("BuildURL produced an unparseable URL: %v", err)
 	}
 
 	if parsed.Host != "github.com" {
@@ -32,20 +33,20 @@ func TestBuildIssueURL_BugTemplate(t *testing.T) {
 	}
 }
 
-func TestBuildIssueURL_FeatureTemplate(t *testing.T) {
-	got := buildIssueURL("feature.yml", "")
+func TestBuildURL_FeatureTemplate(t *testing.T) {
+	got := issues.BuildURL("feature.yml", "")
 	if !strings.Contains(got, "template=feature.yml") {
 		t.Errorf("URL %q does not contain feature template selector", got)
 	}
 }
 
-// TestBuildIssueURL_BodyEncoding ensures multi-line markdown bodies survive
-// the round-trip through URL encoding without being mangled. This matters
+// TestBuildURL_BodyEncoding ensures multi-line markdown bodies survive the
+// round-trip through URL encoding without being mangled. This matters
 // because the auto-collected environment block contains newlines and
 // backticks, both of which need to be percent-encoded.
-func TestBuildIssueURL_BodyEncoding(t *testing.T) {
+func TestBuildURL_BodyEncoding(t *testing.T) {
 	body := "line one\nline two\n- item with `backticks`\n"
-	got := buildIssueURL("bug.yml", body)
+	got := issues.BuildURL("bug.yml", body)
 
 	parsed, err := url.Parse(got)
 	if err != nil {
@@ -58,15 +59,21 @@ func TestBuildIssueURL_BodyEncoding(t *testing.T) {
 }
 
 func TestBuildEnvironmentBlock_ContainsRequiredFields(t *testing.T) {
-	block := buildEnvironmentBlock()
+	block := issues.BuildEnvironmentBlock(issues.EnvironmentInfo{
+		BctlVersion:      "v1.2.3",
+		GOOS:             "darwin",
+		GOARCH:           "arm64",
+		TenantConfigured: true,
+	})
 
 	wantSubstrings := []string{
 		"**Environment**",
 		"bctl version",
+		"`v1.2.3`",
 		"OS / arch",
-		runtime.GOOS,
-		runtime.GOARCH,
+		"`darwin/arm64`",
 		"Britive tenant",
+		"`configured`",
 	}
 	for _, s := range wantSubstrings {
 		if !strings.Contains(block, s) {
@@ -75,14 +82,32 @@ func TestBuildEnvironmentBlock_ContainsRequiredFields(t *testing.T) {
 	}
 }
 
+func TestBuildEnvironmentBlock_NotConfigured(t *testing.T) {
+	block := issues.BuildEnvironmentBlock(issues.EnvironmentInfo{
+		BctlVersion:      "v0.0.0",
+		GOOS:             "linux",
+		GOARCH:           "amd64",
+		TenantConfigured: false,
+	})
+	if !strings.Contains(block, "`not configured`") {
+		t.Errorf("expected 'not configured' label, got:\n%s", block)
+	}
+}
+
 // TestBuildEnvironmentBlock_NoTenantNameLeak guards against accidentally
-// including the actual tenant string in the issue body. The tenant name is
-// considered sensitive because issues land on a public repo.
+// adding fields that would leak the actual tenant string. The function only
+// accepts a bool, never a string -- this test pins that contract.
 func TestBuildEnvironmentBlock_NoTenantNameLeak(t *testing.T) {
-	block := buildEnvironmentBlock()
-	// The label must be either "configured" or "not configured" -- never the
-	// raw tenant name. We assert by checking that the tenant line ends with
-	// one of those exact phrases inside backticks.
+	// Pass values containing what would be a tenant-shaped string. They
+	// should never appear in the output because the function does not
+	// receive a tenant name parameter.
+	block := issues.BuildEnvironmentBlock(issues.EnvironmentInfo{
+		BctlVersion:      "v1.0.0",
+		GOOS:             "darwin",
+		GOARCH:           "arm64",
+		TenantConfigured: true,
+	})
+	// The label must be one of the two known phrases inside backticks.
 	if !strings.Contains(block, "`configured`") && !strings.Contains(block, "`not configured`") {
 		t.Errorf("tenant line missing the expected configured/not-configured label:\n%s", block)
 	}
