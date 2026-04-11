@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/smichalabs/britivectl/compare/v0.3.1...v0.3.1) (2026-04-11)
+
+
+### Features
+
+* add AWS credentials writer and EKS kubeconfig updater ([b21555c](https://github.com/smichalabs/britivectl/commit/b21555cb68281bf5ed40f04f43de1b82e851ead8))
+* add Britive API client with auth and JIT session management ([0be23e8](https://github.com/smichalabs/britivectl/commit/0be23e885a335c20e798ac239f85f417c1aa11be))
+* add cobra CLI with all 13 commands ([900c10f](https://github.com/smichalabs/britivectl/commit/900c10f760b6e8d4fa8edd70fe5eba8e7a287c5f))
+* add config package with YAML persistence and OS keychain ([ec3789c](https://github.com/smichalabs/britivectl/commit/ec3789c139b2018b9f697621f06e58e3c67b7026))
+* add output package — color, table, spinner, JSON/env/process ([921bd9e](https://github.com/smichalabs/britivectl/commit/921bd9e1cf586549e7682cdc42b1b035864a990e))
+* add Route 53 hosted zone for reliable apex DNS ([#13](https://github.com/smichalabs/britivectl/issues/13)) ([2b3c2dd](https://github.com/smichalabs/britivectl/commit/2b3c2dd4d20a752faead886559f97a5173f65f93))
+* add self-update via GitHub releases with checksum verification ([dfa7c45](https://github.com/smichalabs/britivectl/commit/dfa7c45051affc905cb4c5cf4464ab701f6da333))
+* add version package with ldflags build injection ([059699d](https://github.com/smichalabs/britivectl/commit/059699dadd1cb6c14d0db894be531f389aff9ca1))
+* bctl foundation ([#1](https://github.com/smichalabs/britivectl/issues/1)) ([437bb0b](https://github.com/smichalabs/britivectl/commit/437bb0b412279e0458eeb488f1ec634dbb29fdce))
+* skip Britive API on bctl checkout when credentials are still fresh ([#28](https://github.com/smichalabs/britivectl/issues/28)) ([a673198](https://github.com/smichalabs/britivectl/commit/a673198c486d8913474238e9be36c622d98d3f86))
+* zero-touch checkout orchestrator with fuzzy TUI picker ([#22](https://github.com/smichalabs/britivectl/issues/22)) ([ecfcaed](https://github.com/smichalabs/britivectl/commit/ecfcaed488fe62e672676fc90fd825734396c241))
+
+
+### Bug Fixes
+
+* broaden S3 and CloudFront permissions for terraform-cli IAM policy ([#5](https://github.com/smichalabs/britivectl/issues/5)) ([d344497](https://github.com/smichalabs/britivectl/commit/d3444972e413390ae140d2e9ef32f145c43b30e2))
+* **ci:** use minor bumps for feat commits in 0.x ([#24](https://github.com/smichalabs/britivectl/issues/24)) ([9cbef3f](https://github.com/smichalabs/britivectl/commit/9cbef3f9d1afb3e08beb8ab75d5cec0eed22b4f4))
+* friendly non-AWS message, auto-filter TUI, command picker on no args ([#26](https://github.com/smichalabs/britivectl/issues/26)) ([0b448dd](https://github.com/smichalabs/britivectl/commit/0b448dd21c6a95770dc82fc6711649088ea19072))
+* skip access key creation if one exists, add CF function permissions ([378aa99](https://github.com/smichalabs/britivectl/commit/378aa99fafceec77e5732b9c2542ead6f5904a19))
+
+
+### Security
+
+* add checkov, commit-msg hook, remove default root object ([#7](https://github.com/smichalabs/britivectl/issues/7)) ([3cf034c](https://github.com/smichalabs/britivectl/commit/3cf034cc7b8a99f5ff262d17da38e258c4105ab5))
+* harden S3 bucket, add security headers, and CloudWatch alerting ([#10](https://github.com/smichalabs/britivectl/issues/10)) ([df10398](https://github.com/smichalabs/britivectl/commit/df1039801f98089883c2f4a34ffd1252ce659e9a))
+* migrate Terraform CI from static keys to OIDC ([#11](https://github.com/smichalabs/britivectl/issues/11)) ([9a26df7](https://github.com/smichalabs/britivectl/commit/9a26df722f75c3885332f5548b20a9b795141041))
+
+
+### CI
+
+* add workflow_dispatch to release-please and force 0.3.1 ([4bf8d0a](https://github.com/smichalabs/britivectl/commit/4bf8d0ad881046ad6f1ec3771d080f2c3d6964ac))
+
 ## [0.3.1](https://github.com/smichalabs/britivectl/compare/v0.3.0...v0.3.1) (2026-04-11)
 
 
