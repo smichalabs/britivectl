@@ -57,10 +57,21 @@ func TestProfileItem_FilterValue(t *testing.T) {
 	}
 }
 
-func TestTuiModel_Init_NoCmd(t *testing.T) {
+func TestTuiModel_Init_SendsSlashKey(t *testing.T) {
 	m := tuiModel{list: list.New(nil, list.NewDefaultDelegate(), 0, 0)}
-	if cmd := m.Init(); cmd != nil {
-		t.Errorf("Init() returned a command, want nil")
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("Init() returned nil, want a command that opens filter mode")
+	}
+	// The returned command should produce a '/' keypress so the list starts
+	// in filtering mode (auto-focus on the filter input).
+	msg := cmd()
+	key, ok := msg.(tea.KeyMsg)
+	if !ok {
+		t.Fatalf("Init() command returned %T, want tea.KeyMsg", msg)
+	}
+	if len(key.Runes) == 0 || key.Runes[0] != '/' {
+		t.Errorf("Init() keypress = %v, want '/'", key.Runes)
 	}
 }
 

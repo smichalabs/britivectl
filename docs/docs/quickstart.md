@@ -1,85 +1,101 @@
 # Quick Start
 
-!!! info "Prerequisites"
-    You need an active [Britive](https://www.britive.com) tenant and a user account with access to at least one JIT profile. bctl talks to the public [Britive API](https://docs.britive.com/apidocs) -- your tenant admin does not need to enable anything extra.
-
-## The one-command path
+## 30 seconds from install to credentials
 
 ```bash
-bctl checkout dev
-aws s3 ls --profile dev
+brew install smichalabs/tap/bctl
+bctl
 ```
 
-That's it.
+Pick a profile, hit enter. Your credentials are in `~/.aws/credentials`.
 
-On first run `bctl checkout` is an orchestrator: it walks you through tenant
-setup, opens the browser for SSO, syncs your profiles from the Britive API,
-and writes credentials to `~/.aws/credentials`. Subsequent runs skip every
-step that's already done and cache profiles for 24 hours.
+```bash
+aws s3 ls --profile llmg-admin-prod
+```
 
-!!! tip "Aliases and matching"
-    The argument to `checkout` can be an exact alias (`dev`), a substring of
-    the alias or Britive path (`sandbox`), or a fuzzy match. If nothing
-    matches or the match is ambiguous, you get an interactive picker.
+Done.
 
-    Leaving it out entirely (`bctl checkout`) launches the picker with every
-    profile you have.
+!!! info "What you need"
+    A Britive tenant and a user account that can check out at least one JIT profile. bctl uses the [public Britive API](https://docs.britive.com/apidocs) -- your admin doesn't need to enable anything.
+
+!!! tip "First run"
+    On a brand-new machine, the very first `bctl` also asks for your tenant name and opens your browser for SSO. Takes about 20 seconds, you only do it once.
 
 ---
 
-## The step-by-step path (optional)
+## Fuzzy search tips
 
-The sub-commands still exist if you want explicit control:
+The picker filters as you type. Exact matches are not required.
+
+| You type | You get |
+|---|---|
+| `llmg prod`  | `llmg-admin-prod` |
+| `sandbox`    | every profile with `sandbox` in the name or Britive path |
+| `sectools`   | `sectools-admin-nonprod` |
+| `mcpg`       | `mcpg-admin-nonprod` |
+
+Prefer to type the full name? Pass it as an argument:
 
 ```bash
-bctl init               # configure tenant + auth method
-bctl login              # browser SSO or --token
-bctl profiles sync      # pull the latest profiles
-bctl profiles list      # see aliases
-bctl checkout dev       # check out a specific profile
-bctl status             # show active checkouts
-bctl checkin dev        # return a checkout early
+bctl checkout llmg-admin-prod
 ```
 
-You only need these if you want to script around bctl's individual steps.
-For everyday use, `bctl checkout` handles everything.
+Partial matches work there too -- `bctl checkout llmg-prod` resolves to `llmg-admin-prod`. If more than one profile matches, the picker opens pre-filtered.
 
 ---
 
-## Common workflows
-
-### AWS CLI access
+## EKS clusters in one command
 
 ```bash
-bctl checkout dev
-aws s3 ls --profile dev
-```
-
-### Shell environment
-
-```bash
-eval $(bctl checkout dev --output env)
-aws s3 ls   # uses exported variables
-```
-
-### EKS cluster access
-
-```bash
-bctl checkout dev --eks
+bctl checkout llmg-admin-prod --eks
 kubectl get pods
 ```
 
-The `--eks` flag writes AWS credentials and runs `aws eks update-kubeconfig`
-for every cluster listed on the profile, in the right region, with the right
-profile name.
+bctl checks out AWS credentials **and** runs `aws eks update-kubeconfig` for every cluster on the profile. Works across regions.
 
-### AWS credential_process
+---
 
-Add to `~/.aws/config`:
+## Shell integration
 
-```ini
-[profile dev]
-credential_process = bctl checkout dev --output process
+**One-off session with exported env vars:**
+
+```bash
+eval "$(bctl checkout llmg-admin-prod --output env)"
+aws s3 ls
 ```
 
-Then `aws` will call `bctl` automatically when credentials are needed. No manual checkout required.
+**Auto-refresh via `aws` credential_process:**
+
+Add this to `~/.aws/config`:
+
+```ini
+[profile llmg-admin-prod]
+credential_process = bctl checkout llmg-admin-prod --output process
+```
+
+Now `aws --profile llmg-admin-prod ...` calls bctl transparently whenever credentials are needed. No manual checkout.
+
+---
+
+## You can still call every command directly
+
+The launcher is a shortcut, not a requirement. Every subcommand is available on its own, which is what you want for scripts, CI, and muscle memory:
+
+```bash
+bctl checkout <name>    # check out a specific profile
+bctl checkout <name> --eks  # checkout + update EKS kubeconfig
+bctl status             # show active checkouts and expiry
+bctl checkin <name>     # return a checkout early
+bctl profiles list      # show everything you can check out
+bctl profiles sync      # refresh the profile list
+bctl login              # browser SSO
+bctl login --token $T   # API token
+bctl logout             # clear stored credentials
+bctl init               # reconfigure tenant + auth method
+bctl doctor             # diagnose setup issues
+bctl config get/set     # read or write config values
+bctl update             # self-update
+bctl version            # print version info
+```
+
+Run `bctl <command> --help` for flags and details on any of them. See the [full command table on the home page](index.md#all-commands).
