@@ -11,8 +11,9 @@ import (
 )
 
 // CommandChoice describes a top-level subcommand the user can pick from
-// the interactive launcher. It is kept simple (just a name and a short
-// description) so cmd/ can populate it without pulling in cobra types here.
+// the interactive command picker. It is kept simple (just a name and a
+// short description) so cmd/ can populate it without pulling in cobra
+// types here.
 type CommandChoice struct {
 	Name  string // e.g. "checkout"
 	Short string // e.g. "Check out a Britive profile"
