@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/smichalabs/britivectl/internal/aws"
 	"github.com/smichalabs/britivectl/internal/britive"
@@ -16,9 +17,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+// freshnessBuffer is how much head room we require on cached credentials
+// before we trust them. Anything closer to expiry than this triggers a
+// fresh checkout so downstream tools do not get half-dead credentials.
+const freshnessBuffer = 5 * time.Minute
+
 func newCheckoutCmd() *cobra.Command {
 	var (
 		eks       bool
+		force     bool
 		outputFmt string
 	)
 
@@ -32,9 +39,13 @@ profiles on demand if anything is missing. The alias is optional -- if
 omitted, you'll get an interactive picker.
 
 Matching rules for the alias:
-  1. Exact alias match (e.g. 'dev')
+  1. Exact alias match (e.g. 'llmg-admin-prod')
   2. Substring match on alias or Britive path (e.g. 'sandbox')
   3. Fuzzy match as a last resort
+
+If credentials for the profile were already checked out and have at
+least 5 minutes of life left, bctl skips the Britive API entirely and
+reports the existing expiry. Pass --force to refresh anyway.
 
 Output formats (--output / -o):
   awscreds  Write to ~/.aws/credentials (default for AWS profiles)
@@ -47,16 +58,17 @@ Output formats (--output / -o):
 			if len(args) == 1 {
 				query = args[0]
 			}
-			return runCheckout(cmd.Context(), query, eks, outputFmt)
+			return runCheckout(cmd.Context(), query, eks, force, outputFmt)
 		},
 	}
 
 	cmd.Flags().BoolVar(&eks, "eks", false, "also update kubeconfig for EKS clusters in this profile")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "refresh credentials even if existing ones are still valid")
 	cmd.Flags().StringVarP(&outputFmt, "output", "o", "", "output format: awscreds|json|env|process")
 	return cmd
 }
 
-func runCheckout(ctx context.Context, query string, eks bool, outFmt string) error {
+func runCheckout(ctx context.Context, query string, eks, force bool, outFmt string) error {
 	// 1. Reconcile state: config, token, profile cache.
 	ready, err := state.EnsureReady(ctx, stateCallbacks())
 	if err != nil {
@@ -80,7 +92,25 @@ func runCheckout(ctx context.Context, query string, eks bool, outFmt string) err
 		return nil
 	}
 
-	// 4. Checkout via the Britive API.
+	// 4. Skip-if-fresh: if a previous checkout is still valid, do not bother
+	// hitting the Britive API again. The user can pass --force to override.
+	// This is suppressed for output formats that need fresh credentials in
+	// stdout (env, process, json) -- those callers want the actual values
+	// printed, not a "still valid" message.
+	if !force && outFmtWritesAWSCredsFile(outFmt) {
+		if cached, err := config.LoadCheckoutState(match.Alias); err == nil && cached.IsFresh(freshnessBuffer) {
+			output.Success("%s is already checked out (expires in %s)", match.Alias, formatDuration(cached.Remaining()))
+			fmt.Println("Use --force to refresh now.")
+			if eks {
+				// Even on a fresh-cache hit we still want kubeconfig to be
+				// up to date in case clusters changed since the last run.
+				return connectEKSFromProfile(ctx, match)
+			}
+			return nil
+		}
+	}
+
+	// 5. Checkout via the Britive API.
 	if match.Profile.ProfileID == "" || match.Profile.EnvironmentID == "" {
 		return fmt.Errorf("profile %q is missing API IDs -- run 'bctl profiles sync' to update", match.Alias)
 	}
@@ -96,14 +126,116 @@ func runCheckout(ctx context.Context, query string, eks bool, outFmt string) err
 	}
 	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", match.Alias, checkedOut.Expiration))
 
-	// 5. Inject credentials locally.
+	// 6. Persist the freshness state for next time.
+	if err := saveCheckoutState(match.Alias, checkedOut.TransactionID, creds.Expiration); err != nil {
+		// Non-fatal -- the credentials are valid even if we cannot record
+		// the cache. Print a warning so the user can see what happened.
+		output.Warning("could not save checkout cache: %v", err)
+	}
+
+	// 7. Inject credentials locally.
 	if err := injectAWS(match, creds, outFmt); err != nil {
 		return err
 	}
 
-	// 6. Optional EKS kubeconfig update.
+	// 8. Optional EKS kubeconfig update.
 	if eks {
 		return connectEKS(ctx, match, creds)
+	}
+	return nil
+}
+
+// outFmtWritesAWSCredsFile reports whether the requested output format
+// puts credentials into ~/.aws/credentials (the only case where the
+// skip-if-fresh shortcut is correct). Other formats need to print the live
+// values to stdout, which means we must actually call Britive.
+func outFmtWritesAWSCredsFile(outFmt string) bool {
+	if outFmt == "" {
+		outFmt = viper.GetString("output")
+	}
+	if outFmt == "" {
+		outFmt = "awscreds"
+	}
+	return outFmt == "awscreds"
+}
+
+// saveCheckoutState persists the just-completed checkout so that subsequent
+// invocations can skip the Britive API while the credentials are still
+// valid. The expiration string comes from the Britive API; if it cannot be
+// parsed, the cache is skipped (the checkout itself still succeeded).
+func saveCheckoutState(alias, txnID, expiration string) error {
+	expiresAt, err := time.Parse(time.RFC3339, expiration)
+	if err != nil {
+		// Britive sometimes uses subtly different formats. Try a couple
+		// of common ones before giving up.
+		for _, layout := range []string{
+			"2006-01-02T15:04:05Z",
+			"2006-01-02T15:04:05.000Z",
+			time.RFC3339Nano,
+		} {
+			if t, e := time.Parse(layout, expiration); e == nil {
+				expiresAt = t
+				err = nil
+				break
+			}
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("parsing expiration %q: %w", expiration, err)
+	}
+
+	return config.SaveCheckoutState(&config.CheckoutState{
+		Alias:         alias,
+		TransactionID: txnID,
+		CheckedOutAt:  time.Now().UTC(),
+		ExpiresAt:     expiresAt.UTC(),
+	})
+}
+
+// formatDuration renders a duration in a way humans actually read at a
+// glance: "3h 47m", "12m", "30s". Anything sub-second collapses to "<1s".
+func formatDuration(d time.Duration) string {
+	if d <= 0 {
+		return "0s"
+	}
+	if d < time.Second {
+		return "<1s"
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	hours := int(d.Hours())
+	mins := int(d.Minutes()) - hours*60
+	if mins == 0 {
+		return fmt.Sprintf("%dh", hours)
+	}
+	return fmt.Sprintf("%dh %dm", hours, mins)
+}
+
+// connectEKSFromProfile updates kubeconfig using whatever profile/region the
+// user has configured locally. Used on the skip-if-fresh path where we did
+// not just check out new credentials and therefore have no live region.
+func connectEKSFromProfile(ctx context.Context, match resolver.Match) error {
+	if len(match.Profile.EKSClusters) == 0 {
+		return nil
+	}
+	awsProfile := match.Profile.AWSProfile
+	if awsProfile == "" {
+		awsProfile = match.Alias
+	}
+	region := match.Profile.Region
+
+	for _, cluster := range match.Profile.EKSClusters {
+		spin := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
+		spin.Start()
+		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
+			spin.Fail(fmt.Sprintf("Failed to update kubeconfig for %s: %v", cluster, err))
+		} else {
+			spin.Success(fmt.Sprintf("Updated kubeconfig for cluster %s", cluster))
+		}
 	}
 	return nil
 }
