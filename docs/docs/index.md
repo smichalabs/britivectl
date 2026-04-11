@@ -54,6 +54,9 @@ Type a few letters -- `admin prod`, `sandbox`, `data` -- the list narrows instan
 !!! tip "The very first run"
     On a brand-new machine with no config yet, bctl walks you through tenant setup and opens your browser to sign in the first time. It takes 20 seconds. Every run after that skips straight to the profile picker.
 
+!!! info "Sign in once, not every time"
+    bctl auto-refreshes your Britive session token in the background -- you don't run `bctl login` again until you actually need to. And if you check out the same profile twice in a row, the second one is instant: bctl skips the Britive API entirely as long as your existing credentials still have life. See [Sessions & caching](sessions.md) for the details.
+
 ---
 
 ## Skip the launcher
@@ -105,29 +108,17 @@ You can see GCP and Azure profiles in `bctl profiles list` and pick them in the 
 
 ## Why bctl instead of the Britive web UI or pybritive?
 
-=== "Britive web UI"
-
-    Log in, click apps, click environment, click profile, click checkout, pick a duration, copy three values from a popup, paste them into `~/.aws/credentials` or export them, then run `aws ...`. Credentials expire in an hour. Repeat.
-
-=== "pybritive"
-
-    ```bash
-    pip install pybritive[aws]
-    pybritive configure tenant -t acme
-    pybritive login
-    pybritive checkout "AWS/Prod/Admin" -m integrate
-    aws s3 ls --profile dev
-    ```
-
-    Works, but you memorize and type the full Britive path every time, and you carry a ~100 MB Python stack.
-
-=== "bctl"
-
-    ```bash
-    bctl
-    ```
-
-    Then arrow keys or fuzzy search. Single 9 MB binary, no runtime, no paths to memorize.
+|  | Britive web UI | pybritive | **bctl** |
+|---|---|---|---|
+| **Get credentials** | Log in -> click apps -> click environment -> click profile -> click checkout -> pick a duration -> copy three values from a popup -> paste into `~/.aws/credentials` | `pybritive checkout "AWS/Prod/Admin" -m integrate` | `bctl` (then pick) or `bctl checkout admin-prod` |
+| **First-time setup** | None -- just open the browser | `pip install pybritive[aws]` then `pybritive configure tenant -t <name>` then `pybritive login` | `brew install bctl` -- the first run does setup interactively |
+| **Subsequent logins** | Sign in every time, click through every time | `pybritive login` again when token expires | Auto-refreshes the session in the background; you sign in once a day at most |
+| **Repeat checkouts of the same profile** | Full clickfest again | Full API call again | **Instant** -- skips the Britive API if credentials still have life |
+| **Profile name memorization** | Visual click path | You type the exact full Britive path | Fuzzy search the alias, or pass any partial name |
+| **Footprint on your machine** | Browser tab + manual paste | ~100 MB Python stack | Single ~9 MB binary, no runtime |
+| **EKS kubeconfig setup** | Manual `aws eks update-kubeconfig` after every checkout | Manual after every checkout | `--eks` flag does it in the same command |
+| **Shell scriptability** | None | Yes | Yes (`-o env`, `-o process`, `-o json`) |
+| **AWS credential_process** | Not supported | Manual config | First-class -- `bctl checkout <name> -o process` |
 
 ---
 
