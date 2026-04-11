@@ -76,8 +76,8 @@ func (p profileItem) Description() string {
 }
 
 // FilterValue is what bubbles/list runs the fuzzy match against. We include
-// both alias and path so typing "toyota" matches a profile whose path is
-// "GCP/Toyota/readonly" even if the alias is shorter.
+// both alias and path so typing a substring of the Britive path matches even
+// when the alias itself doesn't contain that substring.
 func (p profileItem) FilterValue() string {
 	return p.match.Alias + " " + p.match.Profile.BritivePath
 }

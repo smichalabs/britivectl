@@ -54,20 +54,20 @@ That's the whole command. `bctl` on its own opens a searchable launcher with eve
 ```
 ┌ Pick a profile (type to filter, enter to select, esc to cancel) ┐
 │                                                                 │
-│ > llmg-admin-prod       [aws]  AWS/Prod/LLMG Admin              │
-│   llmg-admin-nonprod    [aws]  AWS/NonProd/LLMG Admin           │
-│   mcpg-admin-nonprod    [aws]  AWS/NonProd/MCPG Admin           │
-│   sectools-admin-nonprod [aws] AWS/NonProd/SecTools Admin       │
-│   gcp-see-admin-sandbox [gcp]  GCP/Sandbox/SEE Admin            │
+│ > aws-admin-prod        [aws]  AWS/Prod/Admin                   │
+│   aws-admin-staging     [aws]  AWS/Staging/Admin                │
+│   aws-data-staging      [aws]  AWS/Staging/Data                 │
+│   aws-security-staging  [aws]  AWS/Staging/Security             │
+│   gcp-admin-sandbox     [gcp]  GCP/Sandbox/Admin                │
 │   ...                                                           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Type `llmg prod`, `sandbox`, or `mcpg` and the list narrows instantly. Hit **enter**, and credentials land in `~/.aws/credentials` automatically.
+Type `admin prod`, `sandbox`, or `data` and the list narrows instantly. Hit **enter**, and credentials land in `~/.aws/credentials` automatically.
 
 ```bash
-aws s3 ls --profile llmg-admin-prod
+aws s3 ls --profile aws-admin-prod
 ```
 
 Done. The first time you run bctl on a fresh machine it walks you through tenant setup, opens your browser for SSO, and fetches your profile list. Every run after that skips to the picker.
@@ -75,21 +75,21 @@ Done. The first time you run bctl on a fresh machine it walks you through tenant
 ### Skip the picker if you know what you want
 
 ```bash
-bctl checkout llmg-admin-prod
+bctl checkout aws-admin-prod
 ```
 
-Partial matches work too. All three of these resolve to `llmg-admin-prod`:
+Partial matches work too. All three of these resolve to `aws-admin-prod`:
 
 ```bash
-bctl checkout llmg-prod
-bctl checkout llmg
+bctl checkout admin-prod
+bctl checkout aws-admin
 bctl checkout prod
 ```
 
 ### EKS clusters
 
 ```bash
-bctl checkout llmg-admin-prod --eks
+bctl checkout aws-admin-prod --eks
 kubectl get pods
 ```
 
@@ -117,7 +117,7 @@ One command. bctl checks out credentials **and** updates your kubeconfig for eve
 pip install pybritive[aws]
 pybritive configure tenant -t acme
 pybritive login
-pybritive checkout "AWS/Prod/LLMG Admin" -m integrate
+pybritive checkout "AWS/Prod/Admin" -m integrate
 aws s3 ls --profile dev
 ```
 
@@ -158,24 +158,24 @@ You rarely need these directly -- the launcher shows them all -- but if you want
 ### Output formats
 
 ```bash
-bctl checkout llmg-admin-prod                  # write to ~/.aws/credentials (default)
-bctl checkout llmg-admin-prod -o env           # eval-able shell exports
-bctl checkout llmg-admin-prod -o process       # AWS credential_process JSON
-bctl checkout llmg-admin-prod -o json          # raw JSON to stdout
+bctl checkout aws-admin-prod                   # write to ~/.aws/credentials (default)
+bctl checkout aws-admin-prod -o env            # eval-able shell exports
+bctl checkout aws-admin-prod -o process        # AWS credential_process JSON
+bctl checkout aws-admin-prod -o json           # raw JSON to stdout
 ```
 
 Example: use env output for a one-off shell session:
 
 ```bash
-eval "$(bctl checkout llmg-admin-prod -o env)"
+eval "$(bctl checkout aws-admin-prod -o env)"
 aws s3 ls
 ```
 
 Or wire into `~/.aws/config` so the AWS CLI calls bctl automatically whenever credentials are needed:
 
 ```ini
-[profile llmg-admin-prod]
-credential_process = bctl checkout llmg-admin-prod -o process
+[profile aws-admin-prod]
+credential_process = bctl checkout aws-admin-prod -o process
 ```
 
 ---
