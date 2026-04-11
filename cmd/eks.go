@@ -104,7 +104,7 @@ func runEKSConnect(ctx context.Context, alias string) error {
 	for _, cluster := range profile.EKSClusters {
 		spin2 := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 		spin2.Start()
-		if err := aws.UpdateKubeconfig(cluster, region, awsProfile); err != nil {
+		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
 			spin2.Fail(fmt.Sprintf("Failed: %v", err))
 			output.Warning("Continuing despite error on cluster %s", cluster)
 		} else {

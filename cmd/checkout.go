@@ -146,7 +146,7 @@ func runCheckout(ctx context.Context, alias string, eks bool, outFmt string) err
 		for _, cluster := range profile.EKSClusters {
 			spin2 := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 			spin2.Start()
-			if err := aws.UpdateKubeconfig(cluster, region, awsProfile); err != nil {
+			if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
 				spin2.Fail(fmt.Sprintf("Failed to update kubeconfig for %s: %v", cluster, err))
 			} else {
 				spin2.Success(fmt.Sprintf("Updated kubeconfig for cluster %s", cluster))

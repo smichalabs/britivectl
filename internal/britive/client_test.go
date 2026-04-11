@@ -2,6 +2,7 @@ package britive
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -195,8 +196,36 @@ func TestPing_Unauthorized(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 401 response, got nil")
 	}
-	if !strings.Contains(strings.ToLower(err.Error()), "unauthorized") {
-		t.Errorf("error %q does not contain 'unauthorized'", err.Error())
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("errors.Is(err, ErrUnauthorized) = false, want true; err = %v", err)
+	}
+}
+
+func TestGet_Unauthorized_ReturnsSentinel(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("token invalid"))
+	}))
+
+	err := c.get(context.Background(), "/api/anything", nil)
+	if err == nil {
+		t.Fatal("expected error for 401 response, got nil")
+	}
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("errors.Is(err, ErrUnauthorized) = false, want true; err = %v", err)
+	}
+}
+
+func TestGet_ContextCanceled(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before making the call
+
+	if err := c.get(ctx, "/api/anything", nil); err == nil {
+		t.Fatal("expected error for canceled context, got nil")
 	}
 }
 

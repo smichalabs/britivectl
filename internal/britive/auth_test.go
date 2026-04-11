@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // makeTestJWT builds a minimal JWT with the given payload map for testing.
@@ -113,6 +115,30 @@ func TestPollForToken_BadJSON(t *testing.T) {
 	_, err := pollForToken(context.Background(), ts.URL+"/whatever", "test-verifier")
 	if err == nil {
 		t.Error("expected error for bad JSON response, got nil")
+	}
+}
+
+func TestPollForToken_ContextCanceled(t *testing.T) {
+	// Server always returns 401 -- caller should respect context cancellation.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel after a short delay so the first poll happens but subsequent
+	// sleeps are interrupted.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	_, err := pollForToken(ctx, ts.URL+"/whatever", "test-verifier")
+	if err == nil {
+		t.Fatal("expected error after context cancellation, got nil")
+	}
+	if !errors.Is(err, ErrAuthTimeout) {
+		t.Errorf("errors.Is(err, ErrAuthTimeout) = false, want true; err = %v", err)
 	}
 }
 
