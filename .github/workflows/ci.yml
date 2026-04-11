@@ -55,7 +55,6 @@ jobs:
         with:
           version: latest
           args: --timeout=5m
-          verify: false
 
   security:
     name: Security
@@ -70,20 +69,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-          cache: pip
-
       - name: Verify modules
         run: go mod verify
 
       - name: govulncheck
         uses: golang/govulncheck-action@v1
 
-      - name: Install checkov
-        run: pip install checkov
-
       - name: checkov (Terraform IaC scan)
-        run: checkov --config-file .checkov.yml
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/
+          framework: terraform
+          config_file: .checkov.yml
+          quiet: true
