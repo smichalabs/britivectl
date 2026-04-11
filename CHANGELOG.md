@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/smichalabs/britivectl/compare/v0.4.0...v0.5.0) (2026-04-11)
+
+
+### Chores
+
+* release 0.5.0 ([66b73d8](https://github.com/smichalabs/britivectl/commit/66b73d86406d0552e461cbd761f68db1b2ebc74b))
+
 ## [0.4.0](https://github.com/smichalabs/britivectl/compare/v0.3.1...v0.4.0) (2026-04-11)
 
 
