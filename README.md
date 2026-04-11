@@ -222,7 +222,11 @@ bctl completion fish > ~/.config/fish/completions/bctl.fish
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and feature requests go in [GitHub Issues](https://github.com/smichalabs/britivectl/issues).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the
+PR process. The full release pipeline (how a `feat:` commit becomes a
+published binary) is documented in [docs/release-process.md](docs/release-process.md).
+
+Bug reports and feature requests go in [GitHub Issues](https://github.com/smichalabs/britivectl/issues).
 
 ---
 
