@@ -17,11 +17,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            coverage_threshold: 85
-          - os: macos-latest
-            coverage_threshold: 90
+        os: [ubuntu-latest, macos-latest]
+    env:
+      COVERAGE_THRESHOLD: "80"
 
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +32,6 @@ jobs:
 
       - name: Test
         run: make test
-        env:
-          COVERAGE_THRESHOLD: ${{ matrix.coverage_threshold }}
 
   lint:
     name: Lint

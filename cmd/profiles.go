@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -49,18 +50,30 @@ func newProfilesListCmd() *cobra.Command {
 }
 
 func runProfilesList() error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+	// Prefer the on-disk cache; fall back to legacy config.yaml profiles.
+	cache, err := config.LoadProfilesCache()
+	if err != nil && !errors.Is(err, config.ErrCacheMiss) {
+		return fmt.Errorf("loading profile cache: %w", err)
 	}
 
-	if len(cfg.Profiles) == 0 {
+	var profiles map[string]config.Profile
+	if cache != nil && len(cache.Profiles) > 0 {
+		profiles = cache.Profiles
+	} else {
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("loading config: %w", err)
+		}
+		profiles = cfg.Profiles
+	}
+
+	if len(profiles) == 0 {
 		output.Info("No profiles configured. Run 'bctl profiles sync' to fetch from API.")
 		return nil
 	}
 
-	rows := make([][]string, 0, len(cfg.Profiles))
-	for alias, p := range cfg.Profiles {
+	rows := make([][]string, 0, len(profiles))
+	for alias, p := range profiles {
 		rows = append(rows, []string{
 			alias,
 			p.BritivePath,
@@ -113,27 +126,10 @@ func runProfilesSync(ctx context.Context) error {
 		return err
 	}
 
-	if cfg.Profiles == nil {
-		cfg.Profiles = make(map[string]config.Profile)
-	}
-
-	for _, e := range entries {
-		// Auto-alias: profileName (disambiguate with env suffix if needed)
-		alias := sanitizeAlias(e.ProfileName)
-		if _, exists := cfg.Profiles[alias]; exists {
-			alias = sanitizeAlias(e.ProfileName + "-" + e.EnvironmentName)
-		}
-		cfg.Profiles[alias] = config.Profile{
-			ProfileID:     e.ProfileID,
-			EnvironmentID: e.EnvironmentID,
-			BritivePath:   e.AppName + "/" + e.EnvironmentName + "/" + e.ProfileName,
-			Cloud:         e.Cloud,
-		}
-	}
-
-	if err := config.Save(cfg); err != nil {
-		spin.Fail("Failed to save config")
-		return fmt.Errorf("saving config: %w", err)
+	profiles := buildProfileMap(entries)
+	if err := config.SaveProfilesCache(&config.ProfilesCache{Profiles: profiles}); err != nil {
+		spin.Fail("Failed to save profile cache")
+		return fmt.Errorf("saving profile cache: %w", err)
 	}
 
 	spin.Success(fmt.Sprintf("Synced %d profiles", len(entries)))
