@@ -1,55 +1,112 @@
-# bctl: Britive CLI
+# bctl -- Britive CLI
 
-**bctl** is a fast, polished CLI for [Britive](https://www.britive.com) JIT access management.
-Replace manual web UI workflows and fragile scripts with a single binary.
+**Get Britive JIT credentials on your laptop in one command.**
 
 ```bash
-bctl checkout dev        # get AWS credentials in seconds
-bctl eks connect dev     # checkout + update kubeconfig
-bctl status              # see what's checked out and when it expires
+brew install smichalabs/tap/bctl
+bctl
+```
+
+That's the whole thing. No tenant config, no login wizard, no `profiles sync`, no memorizing Britive paths. Just run `bctl`, pick a profile with your arrow keys, hit **enter**, and your credentials are ready.
+
+```bash
+aws s3 ls --profile llmg-admin-prod
 ```
 
 ---
 
-## Prerequisites
+## What you actually see
 
-- An active [Britive](https://www.britive.com) tenant with JIT access profiles configured
-- A valid Britive user account with permissions to check out profiles
-- bctl uses the publicly available [Britive REST API](https://docs.britive.com/apidocs) -- no special entitlements required
+Run `bctl`. An interactive launcher opens with every action it can do, **checkout** already highlighted:
+
+```
+┌ bctl -- pick a command (type to filter, enter to run, esc to cancel) ┐
+│                                                                      │
+│ > checkout    Check out a Britive profile                            │
+│   status      Show active profile checkouts                          │
+│   checkin     Return a checked-out profile early                     │
+│   profiles    Manage Britive profiles                                │
+│   eks         EKS cluster operations                                 │
+│   login       Authenticate with Britive                              │
+│   ...                                                                │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Hit **enter**. bctl shows you the profile picker:
+
+```
+┌ Pick a profile (type to filter, enter to select, esc to cancel) ┐
+│                                                                 │
+│ > llmg-admin-prod       [aws]  AWS/Prod/LLMG Admin              │
+│   llmg-admin-nonprod    [aws]  AWS/NonProd/LLMG Admin           │
+│   mcpg-admin-nonprod    [aws]  AWS/NonProd/MCPG Admin           │
+│   sectools-admin-nonprod [aws] AWS/NonProd/SecTools Admin       │
+│   gcp-see-admin-sandbox [gcp]  GCP/Sandbox/SEE Admin            │
+│   ...                                                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Type a few letters -- `llmg prod`, `sandbox`, `mcpg` -- the list narrows instantly. Hit **enter**. Credentials are now in `~/.aws/credentials`. Run whatever `aws` command you wanted. That's the whole flow.
+
+!!! tip "The very first run"
+    On a brand-new machine with no config yet, bctl walks you through tenant setup and opens your browser to sign in the first time. It takes 20 seconds. Every run after that skips straight to the profile picker.
 
 ---
 
-## Install
+## Skip the launcher
 
-=== "macOS"
+The launcher is **optional**. Every subcommand can be called directly -- the launcher is just a shortcut for people who don't want to memorize them.
 
-    ```bash
-    brew tap smichalabs/tap
-    brew install smichalabs/tap/bctl
-    ```
+```bash
+bctl checkout llmg-admin-prod   # check out a specific profile
+bctl status                     # show active checkouts
+bctl profiles list              # browse everything you can check out
+bctl login --token $MY_TOKEN    # authenticate with an API token
+```
 
-=== "Linux / WSL"
+Partial profile names work too. All of these resolve to `llmg-admin-prod`:
 
-    ```bash
-    curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
-    ```
+```bash
+bctl checkout llmg-prod
+bctl checkout llmg
+```
 
-    Auto-detects your distro: `.deb`, `.rpm`, or tarball.
+If more than one profile matches, bctl shows the picker pre-filtered.
 
+See [the full command list](#all-commands) below.
 
 ---
 
-## AWS credentials
+## EKS clusters
 
-=== "Web UI (manual)"
+Pass `--eks` on a profile that has EKS clusters configured. bctl checks out the credentials and updates your kubeconfig in one step:
 
-    1. Log into the Britive web portal
-    2. Navigate apps -> environment -> profile
-    3. Click checkout, pick a duration
-    4. Copy three values from the popup: access key ID, secret access key, session token
-    5. Paste into `~/.aws/credentials` under a profile name (or `export` in your shell)
-    6. Run `aws ...`
-    7. Credentials expire (typically 1 hour) -- repeat from step 1
+```bash
+bctl checkout llmg-admin-prod --eks
+kubectl get pods
+```
+
+---
+
+## Supported clouds
+
+| Cloud | Status |
+|---|---|
+| AWS   | Fully supported -- credentials written to `~/.aws/credentials` |
+| GCP   | Browse and resolve profiles today. Credential injection is coming next. |
+| Azure | Browse and resolve profiles today. Credential injection is coming next. |
+
+You can see GCP and Azure profiles in `bctl profiles list` and pick them in the launcher. Running `bctl checkout` against one tells you the profile is recognized and points at the roadmap.
+
+---
+
+## Why bctl instead of the Britive web UI or pybritive?
+
+=== "Britive web UI"
+
+    Log in, click apps, click environment, click profile, click checkout, pick a duration, copy three values from a popup, paste them into `~/.aws/credentials` or export them, then run `aws ...`. Credentials expire in an hour. Repeat.
 
 === "pybritive"
 
@@ -57,81 +114,53 @@ bctl status              # see what's checked out and when it expires
     pip install pybritive[aws]
     pybritive configure tenant -t acme
     pybritive login
-    pybritive checkout "AWS/Sandbox/Developer" -m integrate
+    pybritive checkout "AWS/Prod/LLMG Admin" -m integrate
     aws s3 ls --profile dev
     ```
 
-    Works, but you type the full Britive path every time. AWS integration requires the `-m integrate` flag and the Python install brings ~100 MB of dependencies.
+    Works, but you memorize and type the full Britive path every time, and you carry a ~100 MB Python stack.
 
 === "bctl"
 
     ```bash
-    brew install smichalabs/tap/bctl
-    bctl checkout dev
-    aws s3 ls --profile dev
+    bctl
     ```
 
-    That's it. On first run `bctl checkout` walks you through tenant setup,
-    opens the browser for SSO, fetches your profiles from the Britive API,
-    and writes credentials to `~/.aws/credentials` -- all in one command.
-    Subsequent runs skip every step that's already done.
-
-    No full Britive path to memorize: use short aliases (`dev`) or
-    substring matches (`sandbox`). Single static binary, no Python runtime.
+    Then arrow keys or fuzzy search. Single 9 MB binary, no runtime, no paths to memorize.
 
 ---
 
-## EKS access
+## All commands
 
-=== "Web UI (manual)"
+The launcher is just a convenience. Every one of these can be called directly whenever you prefer.
 
-    1. Log into the Britive web portal, check out the profile
-    2. Copy AWS credentials into `~/.aws/credentials`
-    3. Run `aws eks update-kubeconfig --region <region> --name <cluster> --profile <profile>`
-    4. Repeat step 3 for every cluster on the profile
-    5. Run `kubectl ...`
-    6. Credentials expire -- repeat from step 1
+| Command | What it does |
+|---|---|
+| `bctl` | Open the command launcher (picks `checkout` by default) |
+| `bctl checkout [name]` | Check out a profile (opens the profile picker if no name given) |
+| `bctl checkout [name] --eks` | Check out + update kubeconfig for EKS clusters on the profile |
+| `bctl checkout [name] --output env` | Print credentials as `export` lines for shell eval |
+| `bctl checkout [name] --output process` | Print AWS credential_process JSON |
+| `bctl status` | Show active checkouts and their expiry times |
+| `bctl checkin [name]` | Return a checked-out profile early |
+| `bctl profiles list` | Show every profile you can check out |
+| `bctl profiles sync` | Refresh the profile list from Britive |
+| `bctl login` | Browser SSO login |
+| `bctl login --token <token>` | Authenticate with a Britive API token |
+| `bctl logout` | Clear stored credentials |
+| `bctl init` | Reconfigure tenant and auth method |
+| `bctl doctor` | Diagnose setup issues |
+| `bctl config get <key>` | Read a config value |
+| `bctl config set <key> <value>` | Write a config value |
+| `bctl update` | Self-update to the latest release |
+| `bctl version` | Print version info |
+| `bctl completion [bash\|zsh\|fish]` | Generate shell completions |
 
-=== "pybritive"
-
-    ```bash
-    pybritive checkout "AWS/Sandbox/Developer" -m integrate
-    aws eks update-kubeconfig --region us-east-1 --name my-cluster --profile dev
-    kubectl get pods
-    ```
-
-    Two manual steps. pybritive does the credential checkout, but you still wire up `aws eks update-kubeconfig` yourself for every cluster.
-
-=== "bctl"
-
-    ```bash
-    bctl eks connect dev
-    kubectl get pods
-    ```
-
-    One command. bctl checks out credentials and runs `aws eks update-kubeconfig` for every cluster on the profile, in the right region, with the right profile name. Credentials and kubeconfig stay in sync.
+Run `bctl <command> --help` for details on any of them.
 
 ---
 
-## Cloud support
-
-| Cloud | Profile listing | Credential injection | Cluster access |
-|---|---|---|---|
-| AWS   | Available now | `~/.aws/credentials` and env vars | EKS via `bctl checkout --eks` |
-| GCP   | Available now | Coming soon | GKE coming soon |
-| Azure | Available now | Coming soon | AKS coming soon |
-
-`bctl profiles sync` and `bctl profiles list` already show profiles from all
-three clouds. `bctl checkout` resolves any of them, but writing GCP/Azure
-credentials to their respective local formats is on the roadmap -- when you
-check out a GCP or Azure profile today, bctl prints a friendly message with
-the profile details so you know it's recognized.
-
-bctl is built on the public Britive API, so any cloud Britive supports can be wired in. AWS and EKS are shipping today. GCP and Azure are next on the roadmap.
-
----
-
-## Next steps
+## Next
 
 - [Install →](install.md)
 - [Quick Start →](quickstart.md)
