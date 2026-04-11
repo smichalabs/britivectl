@@ -48,18 +48,28 @@ func runEKSConnect(ctx context.Context, alias string) error {
 		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(ctx, t)
-	if err != nil {
-		return err
-	}
-
+	// Look up the profile and validate it locally BEFORE acquiring a token.
+	// requireToken can pop a browser window for SSO re-auth, and we do not
+	// want to interrupt the user just to tell them they picked the wrong
+	// profile.
 	profile, ok := cfg.Profiles[alias]
 	if !ok {
-		return fmt.Errorf("profile alias %q not found — run 'bctl profiles sync' first", alias)
+		return fmt.Errorf("profile alias %q not found -- run 'bctl profiles sync' first", alias)
+	}
+
+	// EKS is an AWS service. Reject non-AWS profiles up front with a clear
+	// message rather than letting the command run and fail later.
+	if err := requireAWSForEKS(alias, profile); err != nil {
+		return err
 	}
 
 	if len(profile.EKSClusters) == 0 {
 		return fmt.Errorf("profile %q has no EKS clusters configured", alias)
+	}
+
+	token, err := requireToken(ctx, t)
+	if err != nil {
+		return err
 	}
 
 	// Checkout
