@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/smichalabs/britivectl/internal/aws"
@@ -85,7 +86,16 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 		return err
 	}
 
-	// 3. Non-AWS profiles: friendly "coming soon" message instead of a crash.
+	// 3a. EKS was explicitly requested but the profile is not AWS. EKS is an
+	// AWS service, so this can never work -- fail fast with the specific
+	// error rather than the generic "coming soon" message.
+	if eks {
+		if err := requireAWSForEKS(match.Alias, match.Profile); err != nil {
+			return err
+		}
+	}
+
+	// 3b. Non-AWS profiles: friendly "coming soon" message instead of a crash.
 	// This is an intentional feature gap, not an error -- print and exit 0.
 	if match.Profile.Cloud != "aws" {
 		printComingSoon(match)
@@ -238,6 +248,34 @@ func connectEKSFromProfile(ctx context.Context, match resolver.Match) error {
 		}
 	}
 	return nil
+}
+
+// requireAWSForEKS validates that a profile is an AWS profile before any EKS
+// kubeconfig work is attempted. Returns nil for AWS profiles. For anything
+// else (GCP, Azure, blank cloud), prints a clear explanation and returns an
+// error so the caller exits non-zero.
+//
+// EKS is an AWS service. There is no equivalent thing to do for GCP or Azure
+// profiles, so we fail fast with a useful message rather than calling the
+// Britive API only to fail at `aws eks update-kubeconfig` later.
+func requireAWSForEKS(alias string, profile config.Profile) error {
+	if strings.EqualFold(profile.Cloud, "aws") {
+		return nil
+	}
+	cloud := profile.Cloud
+	if cloud == "" {
+		cloud = "non-AWS"
+	}
+
+	output.Error("EKS only works with AWS profiles. %q is a %s profile.", alias, cloud)
+	fmt.Println()
+	fmt.Printf("  alias:        %s\n", alias)
+	fmt.Printf("  britive path: %s\n", profile.BritivePath)
+	fmt.Printf("  cloud:        %s\n", cloud)
+	fmt.Println()
+	fmt.Println("EKS clusters are an AWS service. Pick an AWS profile, or run")
+	fmt.Println("'bctl checkout' without the --eks flag.")
+	return fmt.Errorf("EKS requires an AWS profile, got %s", cloud)
 }
 
 // printComingSoon prints a friendly message explaining that a cloud other
