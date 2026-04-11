@@ -8,6 +8,18 @@ import (
 	"github.com/smichalabs/britivectl/internal/config"
 )
 
+// testConfigDir returns the directory where config.ConfigPath() will write,
+// given that HOME has been re-rooted to tmpDir. We reuse the production
+// discovery by calling os.UserConfigDir after the test has set HOME.
+func testConfigDir(t *testing.T) string {
+	t.Helper()
+	base, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("os.UserConfigDir: %v", err)
+	}
+	return filepath.Join(base, "bctl")
+}
+
 func TestConfigDirAndPath(t *testing.T) {
 	dir := config.ConfigDir()
 	if dir == "" {
@@ -20,12 +32,11 @@ func TestConfigDirAndPath(t *testing.T) {
 }
 
 func TestSaveAndLoad(t *testing.T) {
-	// Use a temp dir so we don't touch the real config.
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, ".cache"))
 
-	// Patch config path via env is not straightforward; instead we test
-	// the serialization round-trip by using a custom config path approach.
-	// We call Save/Load indirectly by writing to a temp location.
 	cfg := &config.Config{
 		Tenant:        "test-tenant",
 		DefaultRegion: "us-east-1",
@@ -41,13 +52,7 @@ func TestSaveAndLoad(t *testing.T) {
 		},
 	}
 
-	// Save to a temp file using a real config path override via env var trick.
-	// Since Save uses ConfigPath() which uses HOME, we'll override HOME.
-	origHome := os.Getenv("HOME")
-	t.Setenv("HOME", tmpDir)
-	defer func() { _ = os.Setenv("HOME", origHome) }()
-
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".bctl"), 0o700); err != nil {
+	if err := os.MkdirAll(testConfigDir(t), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -84,8 +89,8 @@ func TestSaveAndLoad(t *testing.T) {
 func TestLoadMissingFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 
-	// No config file exists — Load should return an empty config, not an error.
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatalf("Load() with missing file returned error: %v", err)
@@ -98,13 +103,14 @@ func TestLoadMissingFile(t *testing.T) {
 func TestLoad_InvalidConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 
-	bctlDir := filepath.Join(tmpDir, ".bctl")
-	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+	dir := testConfigDir(t)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// Write a malformed YAML file so viper returns a parse error.
-	if err := os.WriteFile(filepath.Join(bctlDir, "config.yaml"), []byte("tenant: [unclosed"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("tenant: [unclosed"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -117,51 +123,56 @@ func TestLoad_InvalidConfig(t *testing.T) {
 func TestSave_MkdirAllError(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 
-	// Place a regular file where .bctl directory should be so MkdirAll fails.
-	if err := os.WriteFile(filepath.Join(tmpDir, ".bctl"), []byte("blocker"), 0o600); err != nil {
+	// Place a regular file where the config directory should be so MkdirAll fails.
+	if err := os.MkdirAll(filepath.Dir(testConfigDir(t)), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(testConfigDir(t), []byte("blocker"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	err := config.Save(&config.Config{})
 	if err == nil {
-		t.Fatal("expected error when .bctl exists as a file, got nil")
+		t.Fatal("expected error when config dir exists as a file, got nil")
 	}
 }
 
 func TestSave_CreateTempError(t *testing.T) {
 	if os.Getuid() == 0 {
-		t.Skip("running as root — cannot test permission denied errors")
+		t.Skip("running as root -- cannot test permission denied errors")
 	}
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 
-	bctlDir := filepath.Join(tmpDir, ".bctl")
-	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+	dir := testConfigDir(t)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	// Make .bctl non-writable so CreateTemp fails.
-	if err := os.Chmod(bctlDir, 0o555); err != nil {
+	if err := os.Chmod(dir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(bctlDir, 0o755) })
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
 
 	err := config.Save(&config.Config{})
 	if err == nil {
-		t.Fatal("expected error when .bctl is not writable, got nil")
+		t.Fatal("expected error when config dir is not writable, got nil")
 	}
 }
 
 func TestSave_RenameError(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 
-	bctlDir := filepath.Join(tmpDir, ".bctl")
-	if err := os.MkdirAll(bctlDir, 0o700); err != nil {
+	dir := testConfigDir(t)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// Create a directory at config.yaml path so Rename fails (can't overwrite dir with file).
-	if err := os.MkdirAll(filepath.Join(bctlDir, "config.yaml"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "config.yaml"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 

@@ -10,11 +10,13 @@ Full docs: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)
 
 ## Cloud support
 
-| Cloud | Status | Cluster access |
-|---|---|---|
-| AWS | Available now | EKS via `bctl eks connect` |
-| GCP | Coming soon | GKE via `bctl gke connect` |
-| Azure | Coming soon | AKS via `bctl aks connect` |
+| Cloud | Profile listing | Credential injection | Cluster access |
+|---|---|---|---|
+| AWS   | Available now | `~/.aws/credentials` and env vars | EKS via `bctl checkout --eks` |
+| GCP   | Available now | Coming soon | GKE coming soon |
+| Azure | Available now | Coming soon | AKS coming soon |
+
+`bctl profiles sync` / `bctl profiles list` show profiles from all three clouds today. GCP and Azure credential injection is on the roadmap -- running `bctl checkout` against a non-AWS profile prints a friendly message with the profile details so you know it's recognized.
 
 ---
 
@@ -46,14 +48,15 @@ Works, but you type the full Britive path every time. AWS integration requires t
 
 ```bash
 brew install smichalabs/tap/bctl
-bctl init
-bctl login
-bctl profiles sync
 bctl checkout dev
 aws s3 ls --profile dev
 ```
 
-Credentials land in `~/.aws/credentials` automatically. Use short aliases (`dev`) instead of full Britive paths. `bctl status` shows what's checked out. Single static binary, no Python runtime.
+One command. On first run `bctl checkout` walks you through tenant setup,
+opens the browser for SSO, syncs your profiles, and writes credentials to
+`~/.aws/credentials`. Subsequent runs skip every step that's already done.
+Use short aliases (`dev`) or substring matches (`sandbox`). Single static
+binary, no Python runtime.
 
 ---
 
@@ -81,7 +84,7 @@ Two manual steps. pybritive does the credential checkout, but you still wire up 
 **bctl**
 
 ```bash
-bctl eks connect dev
+bctl checkout dev --eks
 kubectl get pods
 ```
 

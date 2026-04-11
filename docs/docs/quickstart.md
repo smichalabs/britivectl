@@ -3,61 +3,46 @@
 !!! info "Prerequisites"
     You need an active [Britive](https://www.britive.com) tenant and a user account with access to at least one JIT profile. bctl talks to the public [Britive API](https://docs.britive.com/apidocs) -- your tenant admin does not need to enable anything extra.
 
-## 1. Set up your tenant
-
-```bash
-bctl init
-```
-
-The wizard will ask for your Britive tenant name (e.g. `acme` for `acme.britive-app.com`) and preferred auth method.
-
-## 2. Log in
-
-=== "Browser SSO (recommended)"
-
-    ```bash
-    bctl login
-    ```
-
-    Opens your browser to complete SSO. Token is stored securely in the OS keychain.
-
-=== "API token"
-
-    ```bash
-    bctl login --token <your-api-token>
-    ```
-
-## 3. Sync profiles
-
-```bash
-bctl profiles sync
-```
-
-Fetches all profiles you have access to and saves them locally as aliases.
-
-## 4. Check out credentials
+## The one-command path
 
 ```bash
 bctl checkout dev
+aws s3 ls --profile dev
 ```
 
-Obtains temporary AWS credentials and writes them to `~/.aws/credentials` under the profile's alias.
+That's it.
 
-## 5. Check status
+On first run `bctl checkout` is an orchestrator: it walks you through tenant
+setup, opens the browser for SSO, syncs your profiles from the Britive API,
+and writes credentials to `~/.aws/credentials`. Subsequent runs skip every
+step that's already done and cache profiles for 24 hours.
+
+!!! tip "Aliases and matching"
+    The argument to `checkout` can be an exact alias (`dev`), a substring of
+    the alias or Britive path (`sandbox`), or a fuzzy match. If nothing
+    matches or the match is ambiguous, you get an interactive picker.
+
+    Leaving it out entirely (`bctl checkout`) launches the picker with every
+    profile you have.
+
+---
+
+## The step-by-step path (optional)
+
+The sub-commands still exist if you want explicit control:
 
 ```bash
-bctl status
+bctl init               # configure tenant + auth method
+bctl login              # browser SSO or --token
+bctl profiles sync      # pull the latest profiles
+bctl profiles list      # see aliases
+bctl checkout dev       # check out a specific profile
+bctl status             # show active checkouts
+bctl checkin dev        # return a checkout early
 ```
 
-Shows all active checkouts and their expiry times.
-
-## 6. Check in (optional)
-
-```bash
-bctl checkin dev
-```
-
-Returns credentials early. They expire automatically; use this when you're done early.
+You only need these if you want to script around bctl's individual steps.
+For everyday use, `bctl checkout` handles everything.
 
 ---
 
@@ -80,9 +65,13 @@ aws s3 ls   # uses exported variables
 ### EKS cluster access
 
 ```bash
-bctl eks connect dev
+bctl checkout dev --eks
 kubectl get pods
 ```
+
+The `--eks` flag writes AWS credentials and runs `aws eks update-kubeconfig`
+for every cluster listed on the profile, in the right region, with the right
+profile name.
 
 ### AWS credential_process
 
