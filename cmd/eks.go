@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/aws"
@@ -28,12 +29,12 @@ func newEKSConnectCmd() *cobra.Command {
 		Long:  "Check out a Britive profile and update your local kubeconfig for all associated EKS clusters.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runEKSConnect(args[0])
+			return runEKSConnect(cmd.Context(), args[0])
 		},
 	}
 }
 
-func runEKSConnect(alias string) error {
+func runEKSConnect(ctx context.Context, alias string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -44,12 +45,12 @@ func runEKSConnect(alias string) error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(t)
+	token, err := requireToken(ctx, t)
 	if err != nil {
-		return fmt.Errorf("not logged in — run 'bctl login' first")
+		return err
 	}
 
 	profile, ok := cfg.Profiles[alias]
@@ -70,7 +71,7 @@ func runEKSConnect(alias string) error {
 	}
 
 	client := newAPIClient(t, token)
-	_, creds, err := client.Checkout(profile.ProfileID, profile.EnvironmentID)
+	_, creds, err := client.Checkout(ctx, profile.ProfileID, profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
 		return err
@@ -103,7 +104,7 @@ func runEKSConnect(alias string) error {
 	for _, cluster := range profile.EKSClusters {
 		spin2 := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 		spin2.Start()
-		if err := aws.UpdateKubeconfig(cluster, region, awsProfile); err != nil {
+		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
 			spin2.Fail(fmt.Sprintf("Failed: %v", err))
 			output.Warning("Continuing despite error on cluster %s", cluster)
 		} else {

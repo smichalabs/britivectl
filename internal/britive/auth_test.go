@@ -1,13 +1,16 @@
 package britive
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // makeTestJWT builds a minimal JWT with the given payload map for testing.
@@ -93,7 +96,7 @@ func TestPollForToken_Success(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	token, err := pollForToken(ts.URL+"/whatever", "test-verifier")
+	token, err := pollForToken(context.Background(), ts.URL+"/whatever", "test-verifier")
 	if err != nil {
 		t.Fatalf("pollForToken() error: %v", err)
 	}
@@ -109,9 +112,33 @@ func TestPollForToken_BadJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	_, err := pollForToken(ts.URL+"/whatever", "test-verifier")
+	_, err := pollForToken(context.Background(), ts.URL+"/whatever", "test-verifier")
 	if err == nil {
 		t.Error("expected error for bad JSON response, got nil")
+	}
+}
+
+func TestPollForToken_ContextCanceled(t *testing.T) {
+	// Server always returns 401 -- caller should respect context cancellation.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel after a short delay so the first poll happens but subsequent
+	// sleeps are interrupted.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	_, err := pollForToken(ctx, ts.URL+"/whatever", "test-verifier")
+	if err == nil {
+		t.Fatal("expected error after context cancellation, got nil")
+	}
+	if !errors.Is(err, ErrAuthTimeout) {
+		t.Errorf("errors.Is(err, ErrAuthTimeout) = false, want true; err = %v", err)
 	}
 }
 
@@ -133,7 +160,7 @@ func TestPollForToken_KeepPolling(t *testing.T) {
 	defer ts.Close()
 
 	// Note: pollForToken sleeps 2s between retries, so this test takes ~2s.
-	token, err := pollForToken(ts.URL+"/whatever", "test-verifier")
+	token, err := pollForToken(context.Background(), ts.URL+"/whatever", "test-verifier")
 	if err != nil {
 		t.Fatalf("pollForToken() error: %v", err)
 	}
@@ -147,7 +174,7 @@ func TestPollForToken_KeepPolling(t *testing.T) {
 
 func TestOpenBrowser(t *testing.T) {
 	// Just verify no panic; error value varies by OS/environment.
-	_ = openBrowser("http://localhost:12345")
+	_ = openBrowser(context.Background(), "http://localhost:12345")
 }
 
 func TestJWTExpiry_InvalidJSONPayload(t *testing.T) {
@@ -162,7 +189,7 @@ func TestJWTExpiry_InvalidJSONPayload(t *testing.T) {
 
 func TestAuthWithToken_Error(t *testing.T) {
 	// Use a tenant that cannot resolve so Ping() returns a network error.
-	err := AuthWithToken("this-tenant-does-not-exist.invalid", "fake-token")
+	err := AuthWithToken(context.Background(), "this-tenant-does-not-exist.invalid", "fake-token")
 	if err == nil {
 		t.Fatal("expected error from AuthWithToken with unreachable tenant, got nil")
 	}
@@ -177,7 +204,7 @@ func TestAuthWithToken_Success(t *testing.T) {
 	testBaseURL = ts.URL
 	defer func() { testBaseURL = "" }()
 
-	if err := AuthWithToken("test-tenant", "test-token"); err != nil {
+	if err := AuthWithToken(context.Background(), "test-tenant", "test-token"); err != nil {
 		t.Fatalf("AuthWithToken() unexpected error: %v", err)
 	}
 }
@@ -193,7 +220,7 @@ func TestAuthWithBrowser_Success(t *testing.T) {
 	defer func() { testBaseURL = "" }()
 
 	// openBrowser will fail in CI (no browser), but AuthWithBrowser continues anyway.
-	token, err := AuthWithBrowser("test-tenant")
+	token, err := AuthWithBrowser(context.Background(), "test-tenant")
 	if err != nil {
 		t.Fatalf("AuthWithBrowser() unexpected error: %v", err)
 	}

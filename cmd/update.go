@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/smichalabs/britivectl/internal/update"
@@ -17,7 +19,7 @@ func newUpdateCmd() *cobra.Command {
 		Short: "Update bctl to the latest version",
 		Long:  "Check for and download the latest bctl release from GitHub.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(checkOnly)
+			return runUpdate(cmd.Context(), checkOnly)
 		},
 	}
 
@@ -25,11 +27,14 @@ func newUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func runUpdate(checkOnly bool) error {
+func runUpdate(ctx context.Context, checkOnly bool) error {
 	spin := output.NewSpinner("Checking for updates...")
 	spin.Start()
 
-	latest, isNewer, err := update.CheckLatest(version.Version)
+	checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	latest, isNewer, err := update.CheckLatest(checkCtx, version.Version)
 	if err != nil {
 		spin.Fail("Failed to check for updates")
 		return fmt.Errorf("checking for updates: %w", err)
@@ -51,7 +56,7 @@ func runUpdate(checkOnly bool) error {
 	spin2 := output.NewSpinner(fmt.Sprintf("Downloading bctl v%s...", latest))
 	spin2.Start()
 
-	if err := update.DoUpdate(latest); err != nil {
+	if err := update.DoUpdate(ctx, latest); err != nil {
 		spin2.Fail("Update failed")
 		return fmt.Errorf("updating: %w", err)
 	}

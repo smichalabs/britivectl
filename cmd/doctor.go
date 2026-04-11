@@ -19,17 +19,17 @@ func newDoctorCmd() *cobra.Command {
 		Short: "Check bctl environment and dependencies",
 		Long:  "Run a series of health checks to ensure bctl is correctly configured and all dependencies are available.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDoctor()
+			return runDoctor(cmd.Context())
 		},
 	}
 }
 
 type check struct {
 	name string
-	fn   func() (string, error)
+	fn   func(ctx context.Context) (string, error)
 }
 
-func runDoctor() error {
+func runDoctor(ctx context.Context) error {
 	green := color.New(color.FgGreen, color.Bold)
 	red := color.New(color.FgRed, color.Bold)
 	yellow := color.New(color.FgYellow)
@@ -39,30 +39,30 @@ func runDoctor() error {
 	checks := []check{
 		{
 			name: "Config file exists",
-			fn: func() (string, error) {
+			fn: func(_ context.Context) (string, error) {
 				path := config.ConfigPath()
 				if _, err := os.Stat(path); os.IsNotExist(err) {
-					return "", fmt.Errorf("not found at %s — run 'bctl init'", path)
+					return "", fmt.Errorf("not found at %s -- run 'bctl init'", path)
 				}
 				return config.ConfigPath(), nil
 			},
 		},
 		{
 			name: "Tenant is configured",
-			fn: func() (string, error) {
+			fn: func(_ context.Context) (string, error) {
 				cfg, err := config.Load()
 				if err != nil {
 					return "", fmt.Errorf("could not load config: %w", err)
 				}
 				if cfg.Tenant == "" {
-					return "", fmt.Errorf("not set — run 'bctl config set tenant <name>'")
+					return "", fmt.Errorf("not set -- run 'bctl config set tenant <name>'")
 				}
 				return cfg.Tenant, nil
 			},
 		},
 		{
 			name: "Token in keychain",
-			fn: func() (string, error) {
+			fn: func(_ context.Context) (string, error) {
 				cfg, err := config.Load()
 				if err != nil {
 					return "", fmt.Errorf("could not load config")
@@ -72,25 +72,26 @@ func runDoctor() error {
 				}
 				tok, err := config.GetToken(cfg.Tenant)
 				if err != nil || tok == "" {
-					return "", fmt.Errorf("no token stored — run 'bctl login'")
+					return "", fmt.Errorf("no token stored -- run 'bctl login'")
 				}
 				return "found", nil
 			},
 		},
 		{
 			name: "Britive API reachable",
-			fn: func() (string, error) {
+			fn: func(ctx context.Context) (string, error) {
 				cfg, err := config.Load()
 				if err != nil || cfg.Tenant == "" {
 					return "", fmt.Errorf("skipped (tenant not configured)")
 				}
 				url := fmt.Sprintf("https://%s.britive-app.com/api/v1/health", cfg.Tenant)
-				client := &http.Client{Timeout: 10 * time.Second}
-				req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+				reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				defer cancel()
+				req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
 				if err != nil {
 					return "", fmt.Errorf("creating request: %w", err)
 				}
-				resp, err := client.Do(req)
+				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
 					return "", fmt.Errorf("unreachable: %w", err)
 				}
@@ -103,20 +104,20 @@ func runDoctor() error {
 		},
 		{
 			name: "aws CLI available",
-			fn: func() (string, error) {
+			fn: func(_ context.Context) (string, error) {
 				path, err := exec.LookPath("aws")
 				if err != nil {
-					return "", fmt.Errorf("not found in PATH — install AWS CLI")
+					return "", fmt.Errorf("not found in PATH -- install AWS CLI")
 				}
 				return path, nil
 			},
 		},
 		{
 			name: "kubectl available",
-			fn: func() (string, error) {
+			fn: func(_ context.Context) (string, error) {
 				path, err := exec.LookPath("kubectl")
 				if err != nil {
-					return "", fmt.Errorf("not found in PATH — install kubectl for EKS operations")
+					return "", fmt.Errorf("not found in PATH -- install kubectl for EKS operations")
 				}
 				return path, nil
 			},
@@ -125,7 +126,7 @@ func runDoctor() error {
 
 	allOK := true
 	for _, c := range checks {
-		detail, err := c.fn()
+		detail, err := c.fn(ctx)
 		if err != nil {
 			_, _ = red.Printf("  ✗ %s\n", c.name)
 			_, _ = yellow.Printf("    %v\n", err)

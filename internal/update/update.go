@@ -24,10 +24,8 @@ const (
 
 // CheckLatest fetches the latest release from GitHub and returns the version,
 // whether it's newer than currentVersion, and any error.
-func CheckLatest(currentVersion string) (string, bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
+// The context controls cancellation; callers should set a reasonable timeout.
+func CheckLatest(ctx context.Context, currentVersion string) (string, bool, error) {
 	client := github.NewClient(nil)
 	release, _, err := client.Repositories.GetLatestRelease(ctx, githubOwner, githubRepo)
 	if err != nil {
@@ -43,7 +41,8 @@ func CheckLatest(currentVersion string) (string, bool, error) {
 }
 
 // DoUpdate downloads the specified release version and replaces the running binary.
-func DoUpdate(version string) error {
+// The context controls cancellation for the download and extraction.
+func DoUpdate(ctx context.Context, version string) error {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
@@ -72,13 +71,13 @@ func DoUpdate(version string) error {
 	defer os.RemoveAll(tmpDir)
 
 	tarPath := filepath.Join(tmpDir, assetName)
-	if err := downloadFile(downloadURL, tarPath); err != nil {
+	if err := downloadFile(ctx, downloadURL, tarPath); err != nil {
 		return fmt.Errorf("downloading binary: %w", err)
 	}
 
 	// Verify checksum if available
 	checksumPath := filepath.Join(tmpDir, "checksums.txt")
-	if err := downloadFile(checksumURL, checksumPath); err == nil {
+	if err := downloadFile(ctx, checksumURL, checksumPath); err == nil {
 		if err := verifyChecksum(tarPath, checksumPath, assetName); err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
 		}
@@ -133,15 +132,15 @@ func DoUpdate(version string) error {
 	return nil
 }
 
-func downloadFile(url, dest string) error {
+func downloadFile(ctx context.Context, url, dest string) error {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating request for %s: %w", url, err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("fetching %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
@@ -151,12 +150,14 @@ func downloadFile(url, dest string) error {
 
 	f, err := os.Create(dest) //nolint:gosec // dest is a temp dir path we control
 	if err != nil {
-		return err
+		return fmt.Errorf("creating %s: %w", dest, err)
 	}
 	defer f.Close()
 
-	_, err = io.Copy(f, resp.Body)
-	return err
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return fmt.Errorf("writing %s: %w", dest, err)
+	}
+	return nil
 }
 
 func verifyChecksum(filePath, checksumPath, assetName string) error {

@@ -1,5 +1,7 @@
 package britive
 
+import "context"
+
 // AppAccess is the top-level entry returned by GET /api/access.
 // Each entry is an application with embedded profiles and environments.
 type AppAccess struct {
@@ -37,9 +39,9 @@ type AccessEntry struct {
 
 // ListAccess returns all profiles available to the current user, flattened.
 // GET /api/access
-func (c *Client) ListAccess() ([]AccessEntry, error) {
+func (c *Client) ListAccess(ctx context.Context) ([]AccessEntry, error) {
 	var apps []AppAccess
-	if err := c.get("/api/access", &apps); err != nil {
+	if err := c.get(ctx, "/api/access", &apps); err != nil {
 		return nil, err
 	}
 

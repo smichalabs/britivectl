@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -16,12 +17,12 @@ func newStatusCmd() *cobra.Command {
 		Short: "Show active profile checkouts",
 		Long:  "Display a table of currently active Britive profile checkouts with their expiry times.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runStatus()
+			return runStatus(cmd.Context())
 		},
 	}
 }
 
-func runStatus() error {
+func runStatus(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -32,16 +33,16 @@ func runStatus() error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(t)
+	token, err := requireToken(ctx, t)
 	if err != nil {
-		return fmt.Errorf("not logged in — run 'bctl login' first")
+		return err
 	}
 
 	client := newAPIClient(t, token)
-	sessions, err := client.MySessions()
+	sessions, err := client.MySessions(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching sessions: %w", err)
 	}
