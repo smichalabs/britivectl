@@ -30,13 +30,12 @@ func (f fakeTokenStore) GetTokenExpiry(_ string) int64     { return f.expiry }
 
 // setupTestHome re-roots HOME and XDG so that config/cache files land in
 // a tempdir instead of the real user home.
-func setupTestHome(t *testing.T) string {
+func setupTestHome(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, ".config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, ".cache"))
-	return tmpDir
 }
 
 // makeJWT builds a minimal JWT whose exp claim is the given unix timestamp.
