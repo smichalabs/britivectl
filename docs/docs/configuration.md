@@ -2,7 +2,7 @@
 
 ## Config file
 
-bctl stores configuration at `~/.bctl/config.yaml`.
+bctl stores configuration at `~/.config/bctl/config.yaml`.
 
 ```yaml
 tenant: acme                    # Britive tenant name (acme.britive-app.com)

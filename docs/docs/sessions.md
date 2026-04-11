@@ -130,5 +130,3 @@ This is the source of truth if you're trying to remember whether you already hav
 | AWS credentials (the actual ones) | `~/.aws/credentials` | overwritten on next checkout, or `bctl checkin` |
 | Profile catalog cache | `~/.cache/bctl/profiles.json` | `bctl profiles sync` (24h auto-refresh) |
 | bctl config | `~/.config/bctl/config.yaml` | `bctl init` rewrites it |
-
-Nothing about bctl writes to `~/.bctl/` (the early-version path). If you have one left over from an old install, bctl migrated it on first run and you can delete it.

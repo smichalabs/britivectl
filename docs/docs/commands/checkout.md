@@ -11,8 +11,8 @@ bctl checkout <alias> [flags]
 ## Description
 
 `checkout` contacts the Britive API and issues temporary credentials for the
-named profile alias. The alias must be defined in `~/.bctl/config.yaml` under
-the `profiles` key.
+named profile alias. The alias must be defined in `~/.config/bctl/config.yaml`
+under the `profiles` key.
 
 By default, AWS credentials are written to `~/.aws/credentials`. Use `--output`
 to change the format.

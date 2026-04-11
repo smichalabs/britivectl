@@ -12,7 +12,7 @@ bctl profiles <subcommand>
 
 ### list
 
-Display all profiles configured in `~/.bctl/config.yaml`.
+Display all profiles configured in `~/.config/bctl/config.yaml`.
 
 ```bash
 bctl profiles list
@@ -21,7 +21,7 @@ bctl profiles list
 ### sync
 
 Pull the latest profiles available to you from the Britive API and update
-`~/.bctl/config.yaml`.
+`~/.config/bctl/config.yaml`.
 
 ```bash
 bctl profiles sync

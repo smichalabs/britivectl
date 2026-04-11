@@ -185,7 +185,7 @@ credential_process = bctl checkout aws-admin-prod -o process
 
 ## Configuration
 
-Config file: `~/.config/bctl/config.yaml` (migrated automatically from `~/.bctl/` on first run).
+Config file: `~/.config/bctl/config.yaml`.
 
 ```yaml
 tenant: acme

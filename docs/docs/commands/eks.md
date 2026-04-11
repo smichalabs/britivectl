@@ -33,7 +33,7 @@ kubectl get pods -n default
 
 - `aws` CLI must be on `$PATH`
 - `kubectl` must be on `$PATH`
-- The profile must have `eks_clusters` set in `~/.bctl/config.yaml`
+- The profile must have `eks_clusters` set in `~/.config/bctl/config.yaml`
 
 ## See also
 
