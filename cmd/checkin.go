@@ -77,6 +77,12 @@ func runCheckin(ctx context.Context, alias string) error {
 		return err
 	}
 
+	// Drop the local freshness cache so the next 'bctl checkout' actually
+	// hits the Britive API instead of trusting stale state.
+	if err := config.DeleteCheckoutState(alias); err != nil {
+		output.Warning("could not clear checkout cache: %v", err)
+	}
+
 	spin.Success(fmt.Sprintf("Checked in %s successfully", alias))
 	return nil
 }
