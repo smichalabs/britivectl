@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -35,18 +34,16 @@ type Profile struct {
 	EKSClusters []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
 }
 
-// ConfigDir returns ~/.bctl.
+// ConfigDir returns the XDG config directory for bctl (e.g. ~/.config/bctl).
+// Historically this returned ~/.bctl -- migration is handled by MigrateLegacyDir.
 func ConfigDir() string { //nolint:revive // name predates this lint rule
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ".bctl"
-	}
-	return filepath.Join(home, ".bctl")
+	return xdgConfigDir()
 }
 
-// ConfigPath returns ~/.bctl/config.yaml.
+// ConfigPath returns the absolute path to the config file.
+// Historically this returned ~/.bctl/config.yaml -- migration is handled by MigrateLegacyDir.
 func ConfigPath() string { //nolint:revive // name predates this lint rule
-	return filepath.Join(ConfigDir(), "config.yaml")
+	return ConfigFilePath()
 }
 
 // Load reads configuration from disk and environment variables.

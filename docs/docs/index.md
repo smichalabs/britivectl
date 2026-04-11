@@ -67,14 +67,17 @@ bctl status              # see what's checked out and when it expires
 
     ```bash
     brew install smichalabs/tap/bctl
-    bctl init
-    bctl login
-    bctl profiles sync
     bctl checkout dev
     aws s3 ls --profile dev
     ```
 
-    Credentials land in `~/.aws/credentials` automatically. Use short aliases (`dev`) instead of full Britive paths. `bctl status` shows what's checked out. Single static binary, no Python runtime.
+    That's it. On first run `bctl checkout` walks you through tenant setup,
+    opens the browser for SSO, fetches your profiles from the Britive API,
+    and writes credentials to `~/.aws/credentials` -- all in one command.
+    Subsequent runs skip every step that's already done.
+
+    No full Britive path to memorize: use short aliases (`dev`) or
+    substring matches (`sandbox`). Single static binary, no Python runtime.
 
 ---
 
@@ -112,11 +115,17 @@ bctl status              # see what's checked out and when it expires
 
 ## Cloud support
 
-| Cloud | Status | Cluster access |
-|---|---|---|
-| AWS | Available now | EKS via `bctl eks connect` |
-| GCP | Coming soon | GKE via `bctl gke connect` |
-| Azure | Coming soon | AKS via `bctl aks connect` |
+| Cloud | Profile listing | Credential injection | Cluster access |
+|---|---|---|---|
+| AWS   | Available now | `~/.aws/credentials` and env vars | EKS via `bctl checkout --eks` |
+| GCP   | Available now | Coming soon | GKE coming soon |
+| Azure | Available now | Coming soon | AKS coming soon |
+
+`bctl profiles sync` and `bctl profiles list` already show profiles from all
+three clouds. `bctl checkout` resolves any of them, but writing GCP/Azure
+credentials to their respective local formats is on the roadmap -- when you
+check out a GCP or Azure profile today, bctl prints a friendly message with
+the profile details so you know it's recognized.
 
 bctl is built on the public Britive API, so any cloud Britive supports can be wired in. AWS and EKS are shipping today. GCP and Azure are next on the roadmap.
 
