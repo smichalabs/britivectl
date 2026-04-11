@@ -12,11 +12,21 @@ builds:
     binary: bctl
     env:
       - CGO_ENABLED=0
+    flags:
+      # -trimpath strips local file paths from the binary so panics and
+      # error traces do not leak the build host's directory layout.
+      - -trimpath
+      # -buildvcs=true embeds the source repository's commit and revision
+      # info into the binary. Inspect with: go version -m bctl
+      - -buildvcs=true
     ldflags:
       - -s -w
       - -X github.com/smichalabs/britivectl/pkg/version.Version={{.Version}}
       - -X github.com/smichalabs/britivectl/pkg/version.Commit={{.Commit}}
       - -X github.com/smichalabs/britivectl/pkg/version.BuildDate={{.Date}}
+    # mod_timestamp pins file mtimes to the commit time so two builds of
+    # the same source produce identical archives (reproducible builds).
+    mod_timestamp: '{{ .CommitTimestamp }}'
     goos:
       - darwin
       - linux
@@ -64,6 +74,34 @@ release:
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
+
+# Generate a CycloneDX SBOM for every release artifact via syft. The SBOM
+# is attached to the GitHub release alongside the binaries so downstream
+# consumers (and security scanners) can audit the dependency tree.
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "${artifact}.sbom.json"
+
+# Sign release artifacts and the checksums file with cosign keyless mode.
+# This produces .sig and .pem files that anyone can verify with:
+#   cosign verify-blob --certificate <pem> --signature <sig> <artifact> \
+#     --certificate-identity-regexp 'https://github.com/smichalabs/britivectl' \
+#     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+# Keyless signing uses the GitHub OIDC token issued during the workflow run,
+# so there is no long-lived key to rotate or leak.
+signs:
+  - cmd: cosign
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - --yes
+    artifacts: checksum
+    output: true
 
 snapshot:
   version_template: "{{ .Tag }}-next"
