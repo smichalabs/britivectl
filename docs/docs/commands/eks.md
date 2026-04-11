@@ -8,34 +8,22 @@ EKS cluster operations.
 bctl eks connect <alias>
 ```
 
-## Description
+Equivalent to `bctl checkout <alias> --eks`. Both check out the profile and run `aws eks update-kubeconfig` for every cluster on it.
 
-`eks connect` checks out a Britive profile and immediately updates your local
-kubeconfig so `kubectl` points at the EKS clusters defined in that profile.
-
-Equivalent to:
+## Example
 
 ```bash
-bctl checkout <alias> --eks
+bctl eks connect aws-admin-prod
+kubectl get pods
 ```
 
-## Examples
+## Requirements
 
-```bash
-# Check out credentials and update kubeconfig
-bctl eks connect dev
-
-# Then use kubectl normally
-kubectl get pods -n default
-```
-
-## Prerequisites
-
-- `aws` CLI must be on `$PATH`
-- `kubectl` must be on `$PATH`
-- The profile must have `eks_clusters` set in `~/.config/bctl/config.yaml`
+- The profile must be an AWS profile (the command rejects non-AWS profiles up front)
+- The profile must have `eks_clusters` configured -- see the [EKS Guide](../eks.md)
+- `aws` and `kubectl` must be on `$PATH`
 
 ## See also
 
+- [EKS Guide](../eks.md) -- full setup and multi-cluster behaviour
 - [bctl checkout](checkout.md)
-- [bctl doctor](doctor.md)

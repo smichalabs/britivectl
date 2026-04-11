@@ -3,240 +3,31 @@
 [![CI](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml/badge.svg)](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A fast, polished command-line tool for [Britive](https://www.britive.com) JIT access. Get temporary cloud credentials on your laptop with two keystrokes.
+A command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com).
 
-Full docs: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)
-
----
+**Documentation: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)**
 
 ## Install
-
-**macOS**
 
 ```bash
 brew tap smichalabs/tap
 brew install bctl
 ```
 
-**Linux / WSL**
+For Linux, WSL, or installing from source, see the [Install](https://smichalabs.dev/utils/bctl/install/) page.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
-```
-
-Auto-detects your distro and installs the matching `.deb`, `.rpm`, or tarball.
-
----
-
-## Using it
+## Use
 
 ```bash
 bctl
 ```
 
-That's the whole command. `bctl` on its own opens a searchable command picker with every action it can do:
-
-```
-┌ bctl -- pick a command (type to filter, enter to run, esc to cancel) ┐
-│                                                                      │
-│ > checkout    Check out a Britive profile                            │
-│   status      Show active profile checkouts                          │
-│   checkin     Return a checked-out profile early                     │
-│   profiles    Manage Britive profiles                                │
-│   eks         EKS cluster operations                                 │
-│   login       Authenticate with Britive                              │
-│   ...                                                                │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-`checkout` is already highlighted. Press **enter** and bctl shows the profile picker, which filters live as you type:
-
-```
-┌ Pick a profile (type to filter, enter to select, esc to cancel) ┐
-│                                                                 │
-│ > aws-admin-prod        [aws]  AWS/Prod/Admin                   │
-│   aws-admin-staging     [aws]  AWS/Staging/Admin                │
-│   aws-data-staging      [aws]  AWS/Staging/Data                 │
-│   aws-security-staging  [aws]  AWS/Staging/Security             │
-│   gcp-admin-sandbox     [gcp]  GCP/Sandbox/Admin                │
-│   ...                                                           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Type `admin prod`, `sandbox`, or `data` and the list narrows instantly. Hit **enter**, and credentials land in `~/.aws/credentials` automatically.
-
-```bash
-aws s3 ls --profile aws-admin-prod
-```
-
-Done. The first time you run bctl on a fresh machine it walks you through tenant setup, opens your browser for SSO, and fetches your profile list. Every run after that skips to the picker.
-
-bctl also **auto-refreshes your Britive session** in the background, so you sign in once a day at most -- not on every command. And **repeat checkouts of the same profile are instant**: as long as the credentials in `~/.aws/credentials` still have life, bctl skips the Britive API entirely. Pass `--force` if you want a fresh checkout anyway. Full details in [Sessions & caching](https://smichalabs.dev/utils/bctl/sessions/).
-
-### Skip the pickers if you know what you want
-
-These three commands all check out the same profile -- they enter the flow at different points:
-
-```bash
-bctl                            # opens the command picker; arrow-key to "checkout", hit enter
-bctl checkout                   # skips the command picker, opens the profile picker
-bctl checkout aws-admin-prod    # skips both pickers, checks out immediately
-```
-
-Partial profile names work too. All of these resolve to `aws-admin-prod`:
-
-```bash
-bctl checkout admin-prod
-bctl checkout aws-admin
-bctl checkout prod
-```
-
-### EKS clusters
-
-```bash
-bctl checkout aws-admin-prod --eks
-kubectl get pods
-```
-
-One command. bctl checks out credentials **and** updates your kubeconfig for every cluster on the profile.
-
----
-
-## Supported clouds
-
-| Cloud | Status |
-|---|---|
-| AWS   | Fully supported -- credentials written to `~/.aws/credentials` |
-| GCP   | Browse and resolve profiles today. Credential injection is coming next. |
-| Azure | Browse and resolve profiles today. Credential injection is coming next. |
-
----
-
-## Why bctl instead of the Britive web UI or pybritive?
-
-**Britive web UI:** log in, click apps, click environment, click profile, click checkout, copy three values from a popup, paste them into `~/.aws/credentials` or export them in your shell, then run `aws ...`. Credentials expire in an hour. Repeat.
-
-**pybritive:**
-
-```bash
-pip install pybritive[aws]
-pybritive configure tenant -t acme
-pybritive login
-pybritive checkout "AWS/Prod/Admin" -m integrate
-aws s3 ls --profile dev
-```
-
-Works, but you memorize and type the full Britive path every time, and carry a ~100 MB Python stack.
-
-**bctl:**
-
-```bash
-bctl
-```
-
-Arrow keys or fuzzy search. Single 9 MB binary, no runtime, no paths to memorize.
-
----
-
-## All commands
-
-You rarely need these directly -- the command picker shows them all -- but if you want to script around bctl:
-
-| Command | What it does |
-|---|---|
-| `bctl` | Open the command picker |
-| `bctl checkout [name]` | Check out a profile (opens picker if omitted) |
-| `bctl checkout [name] --eks` | Check out + update kubeconfig for EKS clusters |
-| `bctl status` | Show active checkouts and expiry |
-| `bctl checkin [name]` | Return a checkout early |
-| `bctl profiles list` | Show all profiles available to you |
-| `bctl profiles sync` | Refresh profile list from Britive |
-| `bctl login` | Authenticate (browser SSO or `--token`) |
-| `bctl logout` | Clear stored credentials |
-| `bctl init` | Interactive tenant + auth setup |
-| `bctl doctor` | Diagnose setup issues |
-| `bctl config get/set` | Read or write config values |
-| `bctl update` | Self-update to the latest release |
-| `bctl version` | Print version info |
-| `bctl completion [bash\|zsh\|fish]` | Generate shell completions |
-
-### Output formats
-
-```bash
-bctl checkout aws-admin-prod                   # write to ~/.aws/credentials (default)
-bctl checkout aws-admin-prod -o env            # eval-able shell exports
-bctl checkout aws-admin-prod -o process        # AWS credential_process JSON
-bctl checkout aws-admin-prod -o json           # raw JSON to stdout
-```
-
-Example: use env output for a one-off shell session:
-
-```bash
-eval "$(bctl checkout aws-admin-prod -o env)"
-aws s3 ls
-```
-
-Or wire into `~/.aws/config` so the AWS CLI calls bctl automatically whenever credentials are needed:
-
-```ini
-[profile aws-admin-prod]
-credential_process = bctl checkout aws-admin-prod -o process
-```
-
----
-
-## Configuration
-
-Config file: `~/.config/bctl/config.yaml`.
-
-```yaml
-tenant: acme
-default_region: us-east-1
-auth:
-  method: browser               # browser | token
-```
-
-Profile cache lives separately at `~/.cache/bctl/profiles.json` and refreshes every 24 hours or when you run `bctl profiles sync`.
-
-### Environment variables
-
-| Variable | What it does |
-|---|---|
-| `BCTL_TENANT` | Override tenant from config |
-| `BCTL_TOKEN` | Use this API token (skips keychain) |
-| `BCTL_OUTPUT` | Default output format |
-| `BCTL_REGION` | Default AWS region |
-| `BCTL_NO_COLOR` | Disable color output |
-
----
-
-## Shell completions
-
-```bash
-# bash
-bctl completion bash > /usr/local/etc/bash_completion.d/bctl
-
-# zsh
-bctl completion zsh > "${fpath[1]}/_bctl"
-
-# fish
-bctl completion fish > ~/.config/fish/completions/bctl.fish
-```
-
----
+See the [Quick Start](https://smichalabs.dev/utils/bctl/quickstart/) for the common workflows.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the
-PR process. The full release pipeline (how a `feat:` commit becomes a
-published binary) is documented in [docs/release-process.md](docs/release-process.md).
-
-Bug reports and feature requests go in [GitHub Issues](https://github.com/smichalabs/britivectl/issues).
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process. The release pipeline is documented in [docs/release-process.md](docs/release-process.md).
 
 ## License
 
-[MIT](LICENSE) © smichalabs
+[MIT](LICENSE)
