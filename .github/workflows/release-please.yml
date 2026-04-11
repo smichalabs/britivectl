@@ -3,6 +3,11 @@ name: Release Please
 on:
   push:
     branches: [main]
+  # workflow_dispatch lets a maintainer manually trigger release-please
+  # from the Actions tab. Useful when only chore/docs commits have landed
+  # since the last tag but we still want to ship (for example, to publish
+  # supply chain artifacts that piggyback on a chore commit).
+  workflow_dispatch:
 
 permissions:
   contents: write
