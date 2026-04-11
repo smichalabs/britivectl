@@ -9,14 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func sampleCommandChoices() []CommandChoice {
-	return []CommandChoice{
-		{Name: "checkout", Short: "Check out a Britive profile"},
-		{Name: "status", Short: "Show active checkouts"},
-		{Name: "login", Short: "Authenticate with Britive"},
-	}
-}
-
 func TestPickCommand_NoCommands(t *testing.T) {
 	_, err := PickCommand(context.Background(), nil)
 	if err == nil {
