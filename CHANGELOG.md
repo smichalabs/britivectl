@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/smichalabs/britivectl/compare/v0.2.0...v0.3.0) (2026-04-11)
+
+
+### Features
+
+* skip Britive API on bctl checkout when credentials are still fresh ([#28](https://github.com/smichalabs/britivectl/issues/28)) ([a673198](https://github.com/smichalabs/britivectl/commit/a673198c486d8913474238e9be36c622d98d3f86))
+
+
+### Bug Fixes
+
+* friendly non-AWS message, auto-filter TUI, command picker on no args ([#26](https://github.com/smichalabs/britivectl/issues/26)) ([0b448dd](https://github.com/smichalabs/britivectl/commit/0b448dd21c6a95770dc82fc6711649088ea19072))
+
 ## [0.2.0](https://github.com/smichalabs/britivectl/compare/v0.1.1...v0.2.0) (2026-04-11)
 
 
