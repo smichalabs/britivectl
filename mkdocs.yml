@@ -43,8 +43,10 @@ nav:
       - profiles: commands/profiles.md
       - eks: commands/eks.md
       - doctor: commands/doctor.md
+      - issue: commands/issue.md
   - EKS Guide: eks.md
   - Comparison: comparison.md
+  - Feedback & issues: feedback.md
 
 plugins:
   - search
