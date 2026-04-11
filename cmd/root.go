@@ -25,7 +25,9 @@ var rootCmd = &cobra.Command{
 	Short: "A polished CLI for Britive JIT access management",
 	Long: `bctl is a command-line tool for managing Just-In-Time (JIT) access
 through the Britive platform. Check out profiles, manage AWS credentials,
-update kubeconfig for EKS, and more.`,
+update kubeconfig for EKS, and more.
+
+Documentation: https://smichalabs.dev/utils/bctl/`,
 	SilenceUsage: true,
 }
 
