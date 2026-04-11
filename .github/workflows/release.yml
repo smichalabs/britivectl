@@ -7,6 +7,9 @@ on:
 
 permissions:
   contents: write
+  # id-token: write is required for cosign keyless signing via the OIDC
+  # token issued by GitHub during the workflow run.
+  id-token: write
 
 jobs:
   release:
@@ -24,6 +27,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # Install syft so goreleaser can generate CycloneDX SBOMs for each
+      # archive. Pinned to a specific version for reproducible CI runs.
+      - name: Install syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0.17.7
+
+      # Install cosign so goreleaser can sign the checksums file with
+      # keyless OIDC signing. Pinned for reproducibility.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
       - name: Generate completions
         run: make completions
 
@@ -31,7 +44,9 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          # Pin to a major version so reproducible builds are not silently
+          # broken by an upstream goreleaser release.
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASES_GITHUB_TOKEN }}
