@@ -34,7 +34,7 @@ Auto-detects your distro and installs the matching `.deb`, `.rpm`, or tarball.
 bctl
 ```
 
-That's the whole command. `bctl` on its own opens a searchable launcher with every action it can do:
+That's the whole command. `bctl` on its own opens a searchable command picker with every action it can do:
 
 ```
 ┌ bctl -- pick a command (type to filter, enter to run, esc to cancel) ┐
@@ -75,13 +75,17 @@ Done. The first time you run bctl on a fresh machine it walks you through tenant
 
 bctl also **auto-refreshes your Britive session** in the background, so you sign in once a day at most -- not on every command. And **repeat checkouts of the same profile are instant**: as long as the credentials in `~/.aws/credentials` still have life, bctl skips the Britive API entirely. Pass `--force` if you want a fresh checkout anyway. Full details in [Sessions & caching](https://smichalabs.dev/utils/bctl/sessions/).
 
-### Skip the picker if you know what you want
+### Skip the pickers if you know what you want
+
+These three commands all check out the same profile -- they enter the flow at different points:
 
 ```bash
-bctl checkout aws-admin-prod
+bctl                            # opens the command picker; arrow-key to "checkout", hit enter
+bctl checkout                   # skips the command picker, opens the profile picker
+bctl checkout aws-admin-prod    # skips both pickers, checks out immediately
 ```
 
-Partial matches work too. All three of these resolve to `aws-admin-prod`:
+Partial profile names work too. All of these resolve to `aws-admin-prod`:
 
 ```bash
 bctl checkout admin-prod
@@ -138,11 +142,11 @@ Arrow keys or fuzzy search. Single 9 MB binary, no runtime, no paths to memorize
 
 ## All commands
 
-You rarely need these directly -- the launcher shows them all -- but if you want to script around bctl:
+You rarely need these directly -- the command picker shows them all -- but if you want to script around bctl:
 
 | Command | What it does |
 |---|---|
-| `bctl` | Open the command launcher |
+| `bctl` | Open the command picker |
 | `bctl checkout [name]` | Check out a profile (opens picker if omitted) |
 | `bctl checkout [name] --eks` | Check out + update kubeconfig for EKS clusters |
 | `bctl status` | Show active checkouts and expiry |

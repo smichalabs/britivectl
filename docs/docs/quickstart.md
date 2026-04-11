@@ -83,7 +83,7 @@ Now `aws --profile aws-admin-prod ...` calls bctl transparently whenever credent
 
 ## You can still call every command directly
 
-The launcher is a shortcut, not a requirement. Every subcommand is available on its own, which is what you want for scripts, CI, and muscle memory:
+The command picker is a shortcut, not a requirement. Every subcommand is available on its own, which is what you want for scripts, CI, and muscle memory:
 
 ```bash
 bctl checkout <name>    # check out a specific profile

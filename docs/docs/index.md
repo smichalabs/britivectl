@@ -18,7 +18,7 @@ aws s3 ls --profile aws-admin-prod
 
 ## What you actually see
 
-Run `bctl`. An interactive launcher opens with every action it can do, **checkout** already highlighted:
+Run `bctl`. The **command picker** opens with every action it can do, **checkout** already highlighted:
 
 ```
 ┌ bctl -- pick a command (type to filter, enter to run, esc to cancel) ┐
@@ -59,25 +59,35 @@ Type a few letters -- `admin prod`, `sandbox`, `data` -- the list narrows instan
 
 ---
 
-## Skip the launcher
+## Skip the command picker
 
-The launcher is **optional**. Every subcommand can be called directly -- the launcher is just a shortcut for people who don't want to memorize them.
+You don't have to go through the menu. If you already know what you want, type the subcommand directly. These three commands all check out the same profile -- they just enter the flow at different points:
 
 ```bash
-bctl checkout aws-admin-prod    # check out a specific profile
+bctl                            # opens the command picker; you arrow-key to "checkout" and hit enter
+bctl checkout                   # skips the command picker, opens the profile picker
+bctl checkout aws-admin-prod    # skips both pickers, checks out the profile immediately
+```
+
+Every other subcommand works the same way:
+
+```bash
 bctl status                     # show active checkouts
 bctl profiles list              # browse everything you can check out
 bctl login --token $MY_TOKEN    # authenticate with an API token
 ```
 
-Partial profile names work too. All of these resolve to `aws-admin-prod`:
+### Partial profile names
+
+You don't need the full alias. bctl matches on substrings, so all of these resolve to `aws-admin-prod`:
 
 ```bash
 bctl checkout admin-prod
 bctl checkout aws-admin
+bctl checkout admin
 ```
 
-If more than one profile matches, bctl shows the picker pre-filtered.
+If more than one profile matches, bctl opens the profile picker pre-filtered to those matches so you can pick the right one.
 
 See [the full command list](#all-commands) below.
 
@@ -102,7 +112,7 @@ kubectl get pods
 | GCP   | Browse and resolve profiles today. Credential injection is coming next. |
 | Azure | Browse and resolve profiles today. Credential injection is coming next. |
 
-You can see GCP and Azure profiles in `bctl profiles list` and pick them in the launcher. Running `bctl checkout` against one tells you the profile is recognized and points at the roadmap.
+You can see GCP and Azure profiles in `bctl profiles list` and pick them from the profile picker. Running `bctl checkout` against one tells you the profile is recognized and points at the roadmap.
 
 ---
 
@@ -124,11 +134,11 @@ You can see GCP and Azure profiles in `bctl profiles list` and pick them in the 
 
 ## All commands
 
-The launcher is just a convenience. Every one of these can be called directly whenever you prefer.
+The command picker is just a convenience. Every one of these can be called directly whenever you prefer.
 
 | Command | What it does |
 |---|---|
-| `bctl` | Open the command launcher (picks `checkout` by default) |
+| `bctl` | Open the command picker (`checkout` highlighted by default) |
 | `bctl checkout [name]` | Check out a profile (opens the profile picker if no name given) |
 | `bctl checkout [name] --eks` | Check out + update kubeconfig for EKS clusters on the profile |
 | `bctl checkout [name] --output env` | Print credentials as `export` lines for shell eval |
