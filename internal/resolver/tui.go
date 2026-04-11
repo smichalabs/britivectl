@@ -40,7 +40,9 @@ func interactivePick(ctx context.Context, matches []Match) (Match, error) {
 		Padding(0, 1)
 
 	m := tuiModel{list: l}
-	prog := tea.NewProgram(m, tea.WithContext(ctx))
+	// tea.WithAltScreen gives us a dedicated screen buffer so the picker
+	// does not interleave with earlier command output.
+	prog := tea.NewProgram(m, tea.WithContext(ctx), tea.WithAltScreen())
 	res, err := prog.Run()
 	if err != nil {
 		return Match{}, fmt.Errorf("running picker: %w", err)
@@ -87,7 +89,14 @@ type tuiModel struct {
 	canceled bool
 }
 
-func (m tuiModel) Init() tea.Cmd { return nil }
+// Init sends a synthetic "/" keypress so the list starts in filter input
+// mode, letting the user type immediately to filter without pressing "/"
+// first.
+func (m tuiModel) Init() tea.Cmd {
+	return func() tea.Msg {
+		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	}
+}
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -97,15 +106,17 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Only intercept special keys when the user is NOT in filter input
-		// mode, so typing "q" in the filter doesn't quit.
+		// When the user is composing the filter, forward every key to the
+		// list unchanged. This lets "q", "enter", etc. do the right thing
+		// inside the filter input.
 		if m.list.FilterState() == list.Filtering {
 			var cmd tea.Cmd
 			m.list, cmd = m.list.Update(msg)
 			return m, cmd
 		}
+		// Not filtering (filter has been applied or never entered).
 		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		case "ctrl+c", "esc":
 			m.canceled = true
 			return m, tea.Quit
 		case "enter":

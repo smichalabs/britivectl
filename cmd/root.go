@@ -10,6 +10,7 @@ import (
 	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
+	"github.com/smichalabs/britivectl/internal/resolver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,10 +37,79 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 // Execute runs the root command with the given context. The context is
 // propagated to all subcommand handlers via cmd.Context() and should be
 // signal-aware so Ctrl-C cancels in-flight API calls.
+//
+// When invoked with no arguments, Execute opens an fzf-style command picker
+// so the user can browse or fuzzy-search the available subcommands. The
+// default selection is 'checkout' so hitting enter immediately runs the
+// zero-touch flow.
 func Execute(ctx context.Context) {
+	if shouldShowCommandPicker() {
+		chosen, err := resolver.PickCommand(ctx, commandChoices())
+		if err != nil {
+			if errors.Is(err, resolver.ErrCanceled) {
+				os.Exit(0)
+			}
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Args = append(os.Args, chosen)
+	}
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
+}
+
+// shouldShowCommandPicker reports whether the user invoked 'bctl' with no
+// arguments at all, in which case we launch the interactive command picker.
+// Any flag or subcommand disables the picker and hands off to cobra.
+func shouldShowCommandPicker() bool {
+	return len(os.Args) == 1
+}
+
+// commandChoices builds the list of top-level subcommands shown in the
+// interactive picker. 'checkout' is placed first so pressing enter without
+// filtering runs the zero-touch flow.
+func commandChoices() []resolver.CommandChoice {
+	// checkout goes first -- it's the default action.
+	ordered := []string{
+		"checkout",
+		"status",
+		"checkin",
+		"profiles",
+		"eks",
+		"login",
+		"logout",
+		"init",
+		"doctor",
+		"config",
+		"update",
+		"version",
+	}
+
+	shortByName := make(map[string]string, len(rootCmd.Commands()))
+	for _, c := range rootCmd.Commands() {
+		if c.Hidden || c.Name() == "help" || c.Name() == "completion" {
+			continue
+		}
+		shortByName[c.Name()] = c.Short
+	}
+
+	choices := make([]resolver.CommandChoice, 0, len(shortByName))
+	seen := make(map[string]bool, len(shortByName))
+	for _, name := range ordered {
+		if short, ok := shortByName[name]; ok {
+			choices = append(choices, resolver.CommandChoice{Name: name, Short: short})
+			seen[name] = true
+		}
+	}
+	// Append any subcommands we did not explicitly order so new ones show
+	// up automatically without anyone updating this list.
+	for name, short := range shortByName {
+		if !seen[name] {
+			choices = append(choices, resolver.CommandChoice{Name: name, Short: short})
+		}
+	}
+	return choices
 }
 
 func init() {

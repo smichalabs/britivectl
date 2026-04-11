@@ -74,8 +74,10 @@ func runCheckout(ctx context.Context, query string, eks bool, outFmt string) err
 	}
 
 	// 3. Non-AWS profiles: friendly "coming soon" message instead of a crash.
+	// This is an intentional feature gap, not an error -- print and exit 0.
 	if match.Profile.Cloud != "aws" {
-		return comingSoon(match)
+		printComingSoon(match)
+		return nil
 	}
 
 	// 4. Checkout via the Britive API.
@@ -106,25 +108,25 @@ func runCheckout(ctx context.Context, query string, eks bool, outFmt string) err
 	return nil
 }
 
-// comingSoon returns a friendly error explaining that a cloud other than
-// AWS is not yet implemented. The profile was still resolved correctly --
-// only local credential injection is missing.
-func comingSoon(match resolver.Match) error {
+// printComingSoon prints a friendly message explaining that a cloud other
+// than AWS is not yet implemented. The profile was still resolved correctly
+// -- only local credential injection is missing. Called for GCP and Azure
+// profiles; returns no error because this is an intentional feature gap.
+func printComingSoon(match resolver.Match) {
 	cloud := match.Profile.Cloud
 	if cloud == "" {
 		cloud = "unknown"
 	}
 
-	output.Warning("Profile %s is a %s profile -- credential injection is not yet supported.", match.Alias, cloud)
+	output.Info("Profile %q resolved to a %s profile.", match.Alias, cloud)
 	fmt.Println()
-	fmt.Println("bctl currently supports AWS credential checkout. GCP and Azure")
-	fmt.Println("support is on the roadmap -- see https://smichalabs.dev/utils/bctl/")
-	fmt.Println()
-	fmt.Printf("Profile details:\n")
 	fmt.Printf("  alias:        %s\n", match.Alias)
 	fmt.Printf("  britive path: %s\n", match.Profile.BritivePath)
 	fmt.Printf("  cloud:        %s\n", cloud)
-	return fmt.Errorf("%s credential injection is coming soon", cloud)
+	fmt.Println()
+	output.Warning("%s credential injection is coming soon.", cloud)
+	fmt.Println("bctl currently injects only AWS credentials. GCP and Azure support")
+	fmt.Println("is on the roadmap -- see https://smichalabs.dev/utils/bctl/")
 }
 
 // injectAWS writes the checkout credentials to the location dictated by the
