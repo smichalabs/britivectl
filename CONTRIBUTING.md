@@ -4,21 +4,23 @@ Thank you for your interest in contributing to bctl! This document explains how 
 
 ## Getting Started
 
-1. Fork the repository and clone your fork.
+1. Fork and clone the repo.
 2. Install Go 1.25 or later.
-3. Install development tools:
+3. Bootstrap the dev environment:
 
-```bash
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-brew install goreleaser pre-commit
-pre-commit install
-```
+   ```bash
+   make bootstrap
+   ```
 
-4. Run the tests to verify your setup:
+   This installs `golangci-lint`, `gosec`, `gitleaks`, `goreleaser`,
+   `govulncheck`, and wires up the pre-commit hooks. It is idempotent --
+   safe to run multiple times.
 
-```bash
-make test
-```
+4. Verify your setup:
+
+   ```bash
+   make test
+   ```
 
 ## Development Workflow
 
@@ -48,7 +50,7 @@ make test
 
 ## Conventional Commits
 
-Commit messages must follow this format:
+Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <description>
@@ -58,21 +60,37 @@ Commit messages must follow this format:
 [optional footer(s)]
 ```
 
-Types:
-- `feat` — new feature
-- `fix` — bug fix
-- `docs` — documentation only
-- `refactor` — code change that neither fixes a bug nor adds a feature
-- `test` — adding or modifying tests
-- `chore` — maintenance tasks (deps, CI, etc.)
-- `perf` — performance improvement
+The commit type **decides the next version number**, so it matters.
+release-please scans commits since the last tag and bumps the version
+accordingly.
 
-Examples:
+| Type | When to use | Effect on version |
+|---|---|---|
+| `feat` | new user-facing functionality | minor bump (in 0.x) |
+| `fix` | bug fix | patch bump |
+| `perf` | performance improvement | patch bump |
+| `sec` | security fix or hardening | patch bump |
+| `refactor` | restructuring without behavior change | none |
+| `docs` | documentation only | none |
+| `chore` | dependency bumps, build config, housekeeping | none |
+| `ci` | CI / pipeline changes | none |
+| `test` | adding or modifying tests only | none |
+
+Mark a commit as a breaking change with `!` after the type or with a
+`BREAKING CHANGE:` line in the body.
+
+**Examples:**
+
 ```
-feat(checkout): add --eks flag to auto-update kubeconfig
-fix(auth): handle token expiry gracefully
-docs(readme): add EKS connect example
+feat(checkout): add --force flag to bypass the freshness cache
+fix(auth): retry on 502 from Britive
+sec(deps): bump x/crypto to fix CVE-2024-XXXXX
+chore(ci): pin goreleaser-action to ~> v2
+docs: rewrite quickstart around 'just run bctl'
 ```
+
+For the full release pipeline (how the version flows from your commit
+all the way to a published binary), see [docs/release-process.md](docs/release-process.md).
 
 ## Adding a New Command
 
@@ -86,10 +104,17 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for the full step-by-step guide.
 
 ## Pull Request Process
 
-1. Ensure all tests pass and linting is clean.
-2. Update `CHANGELOG.md` under `[Unreleased]`.
-3. Open a PR against `main` with a clear description.
-4. A maintainer will review and merge.
+1. Ensure all tests pass and linting is clean (`make test && make lint`).
+2. Open a PR against `main` with a clear description and a conventional
+   commit message in the title.
+3. A maintainer will review and merge.
+
+**You do not edit `CHANGELOG.md` yourself.** release-please reads the
+commits since the last tag and generates the changelog automatically
+when it opens the next release PR. Anything you write in `CHANGELOG.md`
+will be overwritten.
+
+For the full release pipeline see [docs/release-process.md](docs/release-process.md).
 
 ## Test Requirements
 
