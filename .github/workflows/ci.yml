@@ -7,6 +7,11 @@ on:
     branches: [main]
 
 jobs:
+  # Tests run on both Linux and macOS because bctl ships binaries for both
+  # platforms (Homebrew tap for macOS, apt/rpm/tarball for Linux). The keychain
+  # code path differs by OS -- macOS Keychain on Darwin, libsecret/kwallet on
+  # Linux -- so we run the suite on each to catch platform-specific regressions
+  # before release rather than after users hit them.
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
