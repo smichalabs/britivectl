@@ -4,13 +4,13 @@
 
 ```bash
 brew tap smichalabs/tap
-brew install smichalabs/tap/bctl
+brew install bctl
 ```
 
 Upgrades:
 
 ```bash
-brew upgrade smichalabs/tap/bctl
+brew upgrade bctl
 ```
 
 ## Linux

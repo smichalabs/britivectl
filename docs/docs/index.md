@@ -3,7 +3,8 @@
 **Get Britive JIT credentials on your laptop in one command.**
 
 ```bash
-brew install smichalabs/tap/bctl
+brew tap smichalabs/tap
+brew install bctl
 bctl
 ```
 
