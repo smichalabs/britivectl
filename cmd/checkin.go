@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/smichalabs/britivectl/internal/config"
@@ -16,12 +17,12 @@ func newCheckinCmd() *cobra.Command {
 		Long:  "Voluntarily return a Britive profile checkout before it expires.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCheckin(args[0])
+			return runCheckin(cmd.Context(), args[0])
 		},
 	}
 }
 
-func runCheckin(alias string) error {
+func runCheckin(ctx context.Context, alias string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -32,12 +33,12 @@ func runCheckin(alias string) error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(t)
+	token, err := requireToken(ctx, t)
 	if err != nil {
-		return fmt.Errorf("not logged in — run 'bctl login' first")
+		return err
 	}
 
 	profile, ok := cfg.Profiles[alias]
@@ -46,13 +47,13 @@ func runCheckin(alias string) error {
 	}
 
 	if profile.ProfileID == "" {
-		return fmt.Errorf("profile %q is missing API IDs — run 'bctl profiles sync' to update", alias)
+		return fmt.Errorf("profile %q is missing API IDs -- run 'bctl profiles sync' to update", alias)
 	}
 
 	client := newAPIClient(t, token)
 
 	// Find the active transaction for this profile
-	sessions, err := client.MySessions()
+	sessions, err := client.MySessions(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching active sessions: %w", err)
 	}
@@ -71,7 +72,7 @@ func runCheckin(alias string) error {
 	spin := output.NewSpinner(fmt.Sprintf("Checking in %s...", alias))
 	spin.Start()
 
-	if err := client.Checkin(transactionID); err != nil {
+	if err := client.Checkin(ctx, transactionID); err != nil {
 		spin.Fail(fmt.Sprintf("Checkin failed: %v", err))
 		return err
 	}

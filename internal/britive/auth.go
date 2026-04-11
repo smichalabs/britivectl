@@ -40,12 +40,13 @@ func JWTExpiry(token string) int64 {
 var testBaseURL string
 
 // AuthWithToken validates an API token against the Britive API.
-func AuthWithToken(tenant, token string) error {
+// The context controls cancellation and deadline for the validation request.
+func AuthWithToken(ctx context.Context, tenant, token string) error {
 	c := NewClient(tenant, token)
 	if testBaseURL != "" {
 		c.baseURL = testBaseURL
 	}
-	if err := c.Ping(); err != nil {
+	if err := c.Ping(ctx); err != nil {
 		return fmt.Errorf("token validation failed: %w", err)
 	}
 	return nil
@@ -56,7 +57,10 @@ func AuthWithToken(tenant, token string) error {
 //  2. Open browser to /login?token=<auth_token>
 //  3. Poll POST /api/auth/cli/retrieve-tokens with the verifier
 //  4. Return the Bearer access token once the user completes login
-func AuthWithBrowser(tenant string) (string, error) {
+//
+// Returns ErrAuthTimeout (wrapped) if the context deadline is reached before
+// the user completes browser login.
+func AuthWithBrowser(ctx context.Context, tenant string) (string, error) {
 	verifier, authToken, err := generateVerifier()
 	if err != nil {
 		return "", fmt.Errorf("generating auth verifier: %w", err)
@@ -68,7 +72,7 @@ func AuthWithBrowser(tenant string) (string, error) {
 	fmt.Printf("If it does not open automatically, visit:\n  %s\n\n", loginURL)
 	fmt.Printf("Waiting for authentication")
 
-	if err := openBrowser(loginURL); err != nil {
+	if err := openBrowser(ctx, loginURL); err != nil {
 		fmt.Printf("\nCould not open browser automatically: %v\n", err)
 	}
 
@@ -76,7 +80,7 @@ func AuthWithBrowser(tenant string) (string, error) {
 	if testBaseURL != "" {
 		pollURL = testBaseURL + "/api/auth/cli/retrieve-tokens"
 	}
-	return pollForToken(pollURL, verifier)
+	return pollForToken(ctx, pollURL, verifier)
 }
 
 // generateVerifier creates a random verifier and its SHA-512-based auth token.
@@ -90,7 +94,7 @@ func generateVerifier() (verifier, authToken string, err error) {
 
 		verifier = base64.RawURLEncoding.EncodeToString(buf)
 		if strings.Contains(verifier, "--") {
-			continue // WAF filter — retry
+			continue // WAF filter -- retry
 		}
 
 		hash := sha512.Sum512([]byte(verifier))
@@ -100,35 +104,51 @@ func generateVerifier() (verifier, authToken string, err error) {
 }
 
 // pollForToken polls Britive's token retrieval endpoint until the user
-// completes browser login or the timeout is reached.
-func pollForToken(url, verifier string) (string, error) {
+// completes browser login or the context is canceled.
+func pollForToken(ctx context.Context, url, verifier string) (string, error) {
 	body := map[string]interface{}{
 		"authParameters": map[string]string{
 			"cliToken": verifier,
 		},
 	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		return "", fmt.Errorf("encoding auth request body: %w", err)
+	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	deadline := time.Now().Add(5 * time.Minute)
+	pollCtx, cancel := contextWithDefaultDeadline(ctx, 5*time.Minute)
+	defer cancel()
 
-	for time.Now().Before(deadline) {
+	for {
 		fmt.Print(".")
 
-		data, _ := json.Marshal(body)
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(data))
-		if err != nil {
-			time.Sleep(2 * time.Second)
+		if err := pollCtx.Err(); err != nil {
+			return "", fmt.Errorf("%w: %w", ErrAuthTimeout, err)
+		}
+
+		req, reqErr := http.NewRequestWithContext(pollCtx, http.MethodPost, url, bytes.NewReader(data))
+		if reqErr != nil {
+			if err := sleepCtx(pollCtx, 2*time.Second); err != nil {
+				return "", fmt.Errorf("%w: %w", ErrAuthTimeout, err)
+			}
 			continue
 		}
 		req.Header.Set("Content-Type", "application/json")
-		resp, err := client.Do(req)
-		if err != nil {
-			time.Sleep(2 * time.Second)
+
+		resp, doErr := client.Do(req)
+		if doErr != nil {
+			if err := sleepCtx(pollCtx, 2*time.Second); err != nil {
+				return "", fmt.Errorf("%w: %w", ErrAuthTimeout, err)
+			}
 			continue
 		}
 
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, readErr := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		if readErr != nil {
+			return "", fmt.Errorf("reading auth response body: %w", readErr)
+		}
 
 		if resp.StatusCode == http.StatusOK {
 			var result struct {
@@ -145,15 +165,26 @@ func pollForToken(url, verifier string) (string, error) {
 			}
 		}
 
-		// 4xx means user hasn't finished yet — keep polling
-		time.Sleep(2 * time.Second)
+		// 4xx means user hasn't finished yet -- keep polling
+		if err := sleepCtx(pollCtx, 2*time.Second); err != nil {
+			return "", fmt.Errorf("%w: %w", ErrAuthTimeout, err)
+		}
 	}
+}
 
-	return "", fmt.Errorf("authentication timed out after 5 minutes")
+// sleepCtx sleeps for d or returns early if the context is canceled.
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
 }
 
 // openBrowser opens the specified URL in the default browser.
-func openBrowser(url string) error {
+// The context controls cancellation for the launched process.
+func openBrowser(ctx context.Context, url string) error {
 	var cmd string
 	var args []string
 
@@ -168,8 +199,8 @@ func openBrowser(url string) error {
 		cmd = "rundll32"
 		args = []string{"url.dll,FileProtocolHandler", url}
 	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+		return fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
 	}
 
-	return exec.CommandContext(context.Background(), cmd, args...).Start() //nolint:gosec // cmd and args are hardcoded per OS, not user input
+	return exec.CommandContext(ctx, cmd, args...).Start() //nolint:gosec // cmd and args are hardcoded per OS, not user input
 }

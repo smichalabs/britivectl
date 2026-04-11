@@ -48,8 +48,9 @@ func NewBearerClient(tenant, token string) *Client {
 }
 
 // get performs a GET request and unmarshals the response into out.
-func (c *Client) get(path string, out interface{}) error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+path, nil)
+// The context controls cancellation and deadline for the request.
+func (c *Client) get(ctx context.Context, path string, out interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -65,7 +66,8 @@ func (c *Client) get(path string, out interface{}) error {
 }
 
 // post performs a POST request with the given body and unmarshals the response.
-func (c *Client) post(path string, body, out interface{}) error {
+// The context controls cancellation and deadline for the request.
+func (c *Client) post(ctx context.Context, path string, body, out interface{}) error {
 	var buf bytes.Buffer
 	if body != nil {
 		if err := json.NewEncoder(&buf).Encode(body); err != nil {
@@ -73,7 +75,7 @@ func (c *Client) post(path string, body, out interface{}) error {
 		}
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.baseURL+path, &buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, &buf)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -98,12 +100,16 @@ func (c *Client) setHeaders(req *http.Request) {
 }
 
 // parseResponse checks the response status and decodes JSON.
+// Returns ErrUnauthorized (wrapped) on HTTP 401 so callers can use errors.Is.
 func (c *Client) parseResponse(resp *http.Response, out interface{}) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("reading response body: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("%w: %s", ErrUnauthorized, string(body))
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
@@ -118,8 +124,9 @@ func (c *Client) parseResponse(resp *http.Response, out interface{}) error {
 }
 
 // Ping checks connectivity to the Britive API.
-func (c *Client) Ping() error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
+// The context controls cancellation and deadline for the request.
+func (c *Client) Ping(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/users/whoami", nil)
 	if err != nil {
 		return fmt.Errorf("creating ping request: %w", err)
 	}
@@ -132,7 +139,7 @@ func (c *Client) Ping() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("unauthorized: check your token")
+		return fmt.Errorf("%w: check your token", ErrUnauthorized)
 	}
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("API returned status %d", resp.StatusCode)

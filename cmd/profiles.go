@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"unicode"
@@ -78,12 +79,12 @@ func newProfilesSyncCmd() *cobra.Command {
 		Short: "Sync profiles from Britive API",
 		Long:  "Fetch available profiles from the Britive API and save them to local config.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProfilesSync()
+			return runProfilesSync(cmd.Context())
 		},
 	}
 }
 
-func runProfilesSync() error {
+func runProfilesSync(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
@@ -94,19 +95,19 @@ func runProfilesSync() error {
 		t = v
 	}
 	if t == "" {
-		return fmt.Errorf("tenant not configured — run 'bctl init' first")
+		return fmt.Errorf("tenant not configured -- run 'bctl init' first")
 	}
 
-	token, err := requireToken(t)
+	token, err := requireToken(ctx, t)
 	if err != nil {
-		return fmt.Errorf("not logged in — run 'bctl login' first")
+		return err
 	}
 
 	spin := output.NewSpinner("Syncing profiles from Britive API...")
 	spin.Start()
 
 	client := newAPIClient(t, token)
-	entries, err := client.ListAccess()
+	entries, err := client.ListAccess(ctx)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Failed to fetch profiles: %v", err))
 		return err

@@ -1,6 +1,7 @@
 package britive
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,7 @@ func TestGetCredentials_Success(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	got, err := c.GetCredentials("txn123")
+	got, err := c.GetCredentials(context.Background(), "txn123")
 	if err != nil {
 		t.Fatalf("GetCredentials() unexpected error: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestGetCredentials_Error(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	_, err := c.GetCredentials("txn123")
+	_, err := c.GetCredentials(context.Background(), "txn123")
 	if err == nil {
 		t.Fatal("expected error from GetCredentials() on 500 response, got nil")
 	}
@@ -92,7 +93,7 @@ func TestMySessions_Success(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	got, err := c.MySessions()
+	got, err := c.MySessions(context.Background())
 	if err != nil {
 		t.Fatalf("MySessions() unexpected error: %v", err)
 	}
@@ -114,7 +115,7 @@ func TestMySessions_Empty(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	got, err := c.MySessions()
+	got, err := c.MySessions(context.Background())
 	if err != nil {
 		t.Fatalf("MySessions() unexpected error: %v", err)
 	}
@@ -132,7 +133,7 @@ func TestCheckin_EmptyID(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("handler should not be called for empty transactionID")
 	}))
-	err := c.Checkin("")
+	err := c.Checkin(context.Background(), "")
 	if err == nil {
 		t.Fatal("expected error for empty transactionID, got nil")
 	}
@@ -148,7 +149,7 @@ func TestCheckin_Success(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	if err := c.Checkin("txn123"); err != nil {
+	if err := c.Checkin(context.Background(), "txn123"); err != nil {
 		t.Fatalf("Checkin() unexpected error: %v", err)
 	}
 }
@@ -159,7 +160,7 @@ func TestCheckin_Error(t *testing.T) {
 	})
 
 	c := newTestClient(t, handler)
-	err := c.Checkin("txn123")
+	err := c.Checkin(context.Background(), "txn123")
 	if err == nil {
 		t.Fatal("expected error from Checkin() on 400 response, got nil")
 	}
@@ -173,7 +174,7 @@ func TestCheckout_EmptyProfileID(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("handler should not be called for empty profileID")
 	}))
-	_, _, err := c.Checkout("", "env1")
+	_, _, err := c.Checkout(context.Background(), "", "env1")
 	if err == nil {
 		t.Fatal("expected error for empty profileID, got nil")
 	}
@@ -183,7 +184,7 @@ func TestCheckout_EmptyEnvironmentID(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("handler should not be called for empty environmentID")
 	}))
-	_, _, err := c.Checkout("prof1", "")
+	_, _, err := c.Checkout(context.Background(), "prof1", "")
 	if err == nil {
 		t.Fatal("expected error for empty environmentID, got nil")
 	}
@@ -258,7 +259,7 @@ func TestCheckout_Success(t *testing.T) {
 	c := newTestClient(t, mux)
 
 	// This call will sleep ~2 seconds because the first poll returns empty.
-	session, gotCreds, err := c.Checkout("prof123", "env456")
+	session, gotCreds, err := c.Checkout(context.Background(), "prof123", "env456")
 	if err != nil {
 		t.Fatalf("Checkout() unexpected error: %v", err)
 	}
@@ -284,7 +285,7 @@ func TestCheckout_PostError(t *testing.T) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 	})
 	c := newTestClient(t, handler)
-	_, _, err := c.Checkout("prof123", "env456")
+	_, _, err := c.Checkout(context.Background(), "prof123", "env456")
 	if err == nil {
 		t.Fatal("expected error when POST checkout returns 500, got nil")
 	}
@@ -324,7 +325,7 @@ func TestCheckout_GetCredentialsError(t *testing.T) {
 	})
 
 	c := newTestClient(t, mux)
-	_, _, err := c.Checkout("prof123", "env456")
+	_, _, err := c.Checkout(context.Background(), "prof123", "env456")
 	if err == nil {
 		t.Fatal("expected error when GetCredentials returns 500, got nil")
 	}
@@ -335,7 +336,7 @@ func TestCheckin_NetworkError(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = ts.URL
 	ts.Close()
-	if err := c.Checkin("txn123"); err == nil {
+	if err := c.Checkin(context.Background(), "txn123"); err == nil {
 		t.Fatal("expected error for closed server, got nil")
 	}
 }
@@ -343,7 +344,7 @@ func TestCheckin_NetworkError(t *testing.T) {
 func TestCheckin_InvalidURL(t *testing.T) {
 	c := NewClient("test-tenant", "test-token")
 	c.baseURL = "://invalid"
-	if err := c.Checkin("txn123"); err == nil {
+	if err := c.Checkin(context.Background(), "txn123"); err == nil {
 		t.Fatal("expected error for invalid URL, got nil")
 	}
 }
@@ -373,7 +374,7 @@ func TestCheckout_SessionError(t *testing.T) {
 	})
 
 	c := newTestClient(t, mux)
-	_, _, err := c.Checkout("prof123", "env456")
+	_, _, err := c.Checkout(context.Background(), "prof123", "env456")
 	if err == nil {
 		t.Fatal("expected error when app-access-status returns 500, got nil")
 	}
