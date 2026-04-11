@@ -7,6 +7,11 @@ on:
     branches: [main]
 
 jobs:
+  # Tests run on both Linux and macOS because bctl ships binaries for both
+  # platforms (Homebrew tap for macOS, apt/rpm/tarball for Linux). The keychain
+  # code path differs by OS -- macOS Keychain on Darwin, libsecret/kwallet on
+  # Linux -- so we run the suite on each to catch platform-specific regressions
+  # before release rather than after users hit them.
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -27,9 +32,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build
-        run: make build
-
       - name: Test
         run: make test
         env:
@@ -48,11 +50,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-
       - name: Lint
-        run: golangci-lint run --timeout=5m ./...
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          args: --timeout=5m
+          verify: false
 
   security:
     name: Security
@@ -67,15 +70,20 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: pip
+
       - name: Verify modules
         run: go mod verify
 
       - name: govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+        uses: golang/govulncheck-action@v1
+
+      - name: Install checkov
+        run: pip install checkov
 
       - name: checkov (Terraform IaC scan)
-        run: |
-          pip3 install checkov
-          checkov --config-file .checkov.yml
+        run: checkov --config-file .checkov.yml
