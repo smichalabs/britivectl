@@ -27,9 +27,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build
-        run: make build
-
       - name: Test
         run: make test
         env:
@@ -48,11 +45,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-
       - name: Lint
-        run: golangci-lint run --timeout=5m ./...
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.0.0
+          args: --timeout=5m
 
   security:
     name: Security
@@ -67,15 +64,20 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: pip
+
       - name: Verify modules
         run: go mod verify
 
       - name: govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+        uses: golang/govulncheck-action@v1
+
+      - name: Install checkov
+        run: pip install checkov
 
       - name: checkov (Terraform IaC scan)
-        run: |
-          pip3 install checkov
-          checkov --config-file .checkov.yml
+        run: checkov --config-file .checkov.yml
