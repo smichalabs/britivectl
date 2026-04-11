@@ -19,5 +19,5 @@ variable "docs_path" {
 variable "alert_emails" {
   description = "Email addresses for infrastructure alerts"
   type        = list(string)
-  default     = ["sajeeve@gmail.com", "saravanakumar.palaniammal@gmail.com"]
+  default     = ["sajeeve@gmail.com", "hackerzhut.inc@gmail.com"]
 }
