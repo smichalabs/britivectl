@@ -18,15 +18,20 @@ type ProfilesCache struct {
 	Profiles map[string]Profile `json:"profiles"`
 }
 
-// LoadProfilesCache reads the profile cache from disk. Returns (nil, nil) if
-// the cache file does not yet exist -- callers should treat that as a cache
-// miss and trigger a sync.
+// ErrCacheMiss is returned by LoadProfilesCache when the cache file does
+// not yet exist. Callers should treat it as a signal to run a sync rather
+// than a hard failure.
+var ErrCacheMiss = errors.New("profile cache does not exist")
+
+// LoadProfilesCache reads the profile cache from disk. Returns ErrCacheMiss
+// if the file has not been written yet -- callers should check with
+// errors.Is and trigger a sync on first run.
 func LoadProfilesCache() (*ProfilesCache, error) {
 	path := ProfilesCachePath()
 	data, err := os.ReadFile(path) //nolint:gosec // path is under our controlled cache dir
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
+			return nil, ErrCacheMiss
 		}
 		return nil, fmt.Errorf("reading profiles cache: %w", err)
 	}

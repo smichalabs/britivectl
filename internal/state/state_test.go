@@ -81,15 +81,15 @@ func TestEnsureReady_HappyPath_CacheHit(t *testing.T) {
 		},
 		RunInit: func(_ context.Context) (*config.Config, error) {
 			t.Error("RunInit should not be called on happy path")
-			return nil, nil
+			return nil, errors.New("should not be called")
 		},
 		RunLogin: func(_ context.Context, _ string) (string, error) {
 			t.Error("RunLogin should not be called on happy path")
-			return "", nil
+			return "", errors.New("should not be called")
 		},
 		RunSync: func(_ context.Context, _, _ string) (map[string]config.Profile, error) {
 			t.Error("RunSync should not be called on happy path")
-			return nil, nil
+			return nil, errors.New("should not be called")
 		},
 	}
 
@@ -296,7 +296,9 @@ func TestEnsureReady_ExpiredTokenNoCallback_ReturnsSentinel(t *testing.T) {
 			tokenType: "Bearer",
 			expiry:    britive.JWTExpiry(expired),
 		},
-		RunSync: func(_ context.Context, _, _ string) (map[string]config.Profile, error) { return nil, nil },
+		RunSync: func(_ context.Context, _, _ string) (map[string]config.Profile, error) {
+			return nil, errors.New("unreachable")
+		},
 	})
 	if err == nil || !errors.Is(err, britive.ErrTokenExpired) {
 		t.Errorf("err = %v, want wrapped ErrTokenExpired", err)
@@ -428,7 +430,7 @@ func TestEnsureReady_FreshCacheWithConfig_UsesCache(t *testing.T) {
 		},
 		RunSync: func(_ context.Context, _, _ string) (map[string]config.Profile, error) {
 			syncCalled = true
-			return nil, nil
+			return nil, errors.New("should not be called: cache is fresh")
 		},
 	}
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -51,7 +52,7 @@ func newProfilesListCmd() *cobra.Command {
 func runProfilesList() error {
 	// Prefer the on-disk cache; fall back to legacy config.yaml profiles.
 	cache, err := config.LoadProfilesCache()
-	if err != nil {
+	if err != nil && !errors.Is(err, config.ErrCacheMiss) {
 		return fmt.Errorf("loading profile cache: %w", err)
 	}
 

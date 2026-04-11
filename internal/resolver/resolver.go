@@ -147,7 +147,7 @@ func numberedPick(ctx context.Context, matches []Match, in io.Reader, out io.Wri
 		fmt.Fprintf(out, "  [%d] %-30s  %-6s  %s\n", i+1, m.Alias, cloud, path)
 	}
 	fmt.Fprintln(out)
-	fmt.Fprint(out, "Enter number (or 'q' to cancel): ")
+	fmt.Fprintln(out, "Enter number (or 'q' to cancel):")
 
 	// Respect context cancellation by reading in a goroutine.
 	type result struct {

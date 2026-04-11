@@ -177,7 +177,7 @@ func requireValidToken(ctx context.Context, tenant string, store TokenStore, run
 // the cache is missing or stale.
 func loadOrSyncProfiles(ctx context.Context, cfg *config.Config, token string, runSync func(context.Context, string, string) (map[string]config.Profile, error)) (map[string]config.Profile, error) {
 	cache, err := config.LoadProfilesCache()
-	if err != nil {
+	if err != nil && !errors.Is(err, config.ErrCacheMiss) {
 		return nil, fmt.Errorf("loading profiles cache: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,8 +21,8 @@ func setupXDG(t *testing.T) {
 func TestLoadProfilesCache_Missing(t *testing.T) {
 	setupXDG(t)
 	cache, err := config.LoadProfilesCache()
-	if err != nil {
-		t.Fatalf("LoadProfilesCache() error = %v", err)
+	if !errors.Is(err, config.ErrCacheMiss) {
+		t.Fatalf("LoadProfilesCache() error = %v, want ErrCacheMiss", err)
 	}
 	if cache != nil {
 		t.Errorf("expected nil cache on missing file, got %+v", cache)
