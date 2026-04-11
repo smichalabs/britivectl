@@ -12,7 +12,7 @@ Run `bctl doctor` to verify both are available.
 
 ## Configure EKS clusters
 
-Add `eks_clusters` to a profile in `~/.bctl/config.yaml`:
+Add `eks_clusters` to a profile in `~/.config/bctl/config.yaml`:
 
 ```yaml
 profiles:

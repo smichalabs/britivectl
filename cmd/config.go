@@ -14,7 +14,7 @@ func newConfigCmd() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
 		Short: "Get and set configuration values",
-		Long:  "Read and write bctl configuration values in ~/.bctl/config.yaml.",
+		Long:  "Read and write bctl configuration values in ~/.config/bctl/config.yaml.",
 	}
 
 	configCmd.AddCommand(newConfigGetCmd())

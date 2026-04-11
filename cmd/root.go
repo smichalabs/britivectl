@@ -115,7 +115,7 @@ func commandChoices() []resolver.CommandChoice {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.bctl/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/bctl/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "", "output format: table|json|env|awscreds|process")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable color output")
 	rootCmd.PersistentFlags().StringVar(&tenant, "tenant", "", "Britive tenant name (overrides config)")
@@ -187,12 +187,7 @@ func initConfig() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		viper.AddConfigPath(home + "/.bctl")
+		viper.AddConfigPath(config.ConfigDir())
 		viper.SetConfigType("yaml")
 		viper.SetConfigName("config")
 	}
