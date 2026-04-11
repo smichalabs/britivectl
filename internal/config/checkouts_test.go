@@ -34,7 +34,7 @@ func TestSaveAndLoadCheckoutState(t *testing.T) {
 	setupXDG(t)
 
 	original := &config.CheckoutState{
-		Alias:         "llmg-admin-prod",
+		Alias:         "aws-admin-prod",
 		TransactionID: "txn-123",
 		CheckedOutAt:  time.Now().UTC().Truncate(time.Second),
 		ExpiresAt:     time.Now().UTC().Truncate(time.Second).Add(4 * time.Hour),
@@ -43,7 +43,7 @@ func TestSaveAndLoadCheckoutState(t *testing.T) {
 		t.Fatalf("SaveCheckoutState() error = %v", err)
 	}
 
-	loaded, err := config.LoadCheckoutState("llmg-admin-prod")
+	loaded, err := config.LoadCheckoutState("aws-admin-prod")
 	if err != nil {
 		t.Fatalf("LoadCheckoutState() error = %v", err)
 	}

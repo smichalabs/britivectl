@@ -10,7 +10,7 @@ bctl
 Pick a profile, hit enter. Your credentials are in `~/.aws/credentials`.
 
 ```bash
-aws s3 ls --profile llmg-admin-prod
+aws s3 ls --profile aws-admin-prod
 ```
 
 Done.
@@ -29,25 +29,25 @@ The picker filters as you type. Exact matches are not required.
 
 | You type | You get |
 |---|---|
-| `llmg prod`  | `llmg-admin-prod` |
+| `admin prod` | `aws-admin-prod` |
 | `sandbox`    | every profile with `sandbox` in the name or Britive path |
-| `sectools`   | `sectools-admin-nonprod` |
-| `mcpg`       | `mcpg-admin-nonprod` |
+| `security`   | `aws-security-staging` |
+| `data`       | `aws-data-staging` |
 
 Prefer to type the full name? Pass it as an argument:
 
 ```bash
-bctl checkout llmg-admin-prod
+bctl checkout aws-admin-prod
 ```
 
-Partial matches work there too -- `bctl checkout llmg-prod` resolves to `llmg-admin-prod`. If more than one profile matches, the picker opens pre-filtered.
+Partial matches work there too -- `bctl checkout admin-prod` resolves to `aws-admin-prod`. If more than one profile matches, the picker opens pre-filtered.
 
 ---
 
 ## EKS clusters in one command
 
 ```bash
-bctl checkout llmg-admin-prod --eks
+bctl checkout aws-admin-prod --eks
 kubectl get pods
 ```
 
@@ -60,7 +60,7 @@ bctl checks out AWS credentials **and** runs `aws eks update-kubeconfig` for eve
 **One-off session with exported env vars:**
 
 ```bash
-eval "$(bctl checkout llmg-admin-prod --output env)"
+eval "$(bctl checkout aws-admin-prod --output env)"
 aws s3 ls
 ```
 
@@ -69,11 +69,11 @@ aws s3 ls
 Add this to `~/.aws/config`:
 
 ```ini
-[profile llmg-admin-prod]
-credential_process = bctl checkout llmg-admin-prod --output process
+[profile aws-admin-prod]
+credential_process = bctl checkout aws-admin-prod --output process
 ```
 
-Now `aws --profile llmg-admin-prod ...` calls bctl transparently whenever credentials are needed. No manual checkout.
+Now `aws --profile aws-admin-prod ...` calls bctl transparently whenever credentials are needed. No manual checkout.
 
 ---
 

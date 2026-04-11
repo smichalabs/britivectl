@@ -10,7 +10,7 @@ bctl
 That's the whole thing. No tenant config, no login wizard, no `profiles sync`, no memorizing Britive paths. Just run `bctl`, pick a profile with your arrow keys, hit **enter**, and your credentials are ready.
 
 ```bash
-aws s3 ls --profile llmg-admin-prod
+aws s3 ls --profile aws-admin-prod
 ```
 
 ---
@@ -38,17 +38,17 @@ Hit **enter**. bctl shows you the profile picker:
 ```
 ┌ Pick a profile (type to filter, enter to select, esc to cancel) ┐
 │                                                                 │
-│ > llmg-admin-prod       [aws]  AWS/Prod/LLMG Admin              │
-│   llmg-admin-nonprod    [aws]  AWS/NonProd/LLMG Admin           │
-│   mcpg-admin-nonprod    [aws]  AWS/NonProd/MCPG Admin           │
-│   sectools-admin-nonprod [aws] AWS/NonProd/SecTools Admin       │
-│   gcp-see-admin-sandbox [gcp]  GCP/Sandbox/SEE Admin            │
+│ > aws-admin-prod        [aws]  AWS/Prod/Admin                   │
+│   aws-admin-staging     [aws]  AWS/Staging/Admin                │
+│   aws-data-staging      [aws]  AWS/Staging/Data                 │
+│   aws-security-staging  [aws]  AWS/Staging/Security             │
+│   gcp-admin-sandbox     [gcp]  GCP/Sandbox/Admin                │
 │   ...                                                           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Type a few letters -- `llmg prod`, `sandbox`, `mcpg` -- the list narrows instantly. Hit **enter**. Credentials are now in `~/.aws/credentials`. Run whatever `aws` command you wanted. That's the whole flow.
+Type a few letters -- `admin prod`, `sandbox`, `data` -- the list narrows instantly. Hit **enter**. Credentials are now in `~/.aws/credentials`. Run whatever `aws` command you wanted. That's the whole flow.
 
 !!! tip "The very first run"
     On a brand-new machine with no config yet, bctl walks you through tenant setup and opens your browser to sign in the first time. It takes 20 seconds. Every run after that skips straight to the profile picker.
@@ -60,17 +60,17 @@ Type a few letters -- `llmg prod`, `sandbox`, `mcpg` -- the list narrows instant
 The launcher is **optional**. Every subcommand can be called directly -- the launcher is just a shortcut for people who don't want to memorize them.
 
 ```bash
-bctl checkout llmg-admin-prod   # check out a specific profile
+bctl checkout aws-admin-prod    # check out a specific profile
 bctl status                     # show active checkouts
 bctl profiles list              # browse everything you can check out
 bctl login --token $MY_TOKEN    # authenticate with an API token
 ```
 
-Partial profile names work too. All of these resolve to `llmg-admin-prod`:
+Partial profile names work too. All of these resolve to `aws-admin-prod`:
 
 ```bash
-bctl checkout llmg-prod
-bctl checkout llmg
+bctl checkout admin-prod
+bctl checkout aws-admin
 ```
 
 If more than one profile matches, bctl shows the picker pre-filtered.
@@ -84,7 +84,7 @@ See [the full command list](#all-commands) below.
 Pass `--eks` on a profile that has EKS clusters configured. bctl checks out the credentials and updates your kubeconfig in one step:
 
 ```bash
-bctl checkout llmg-admin-prod --eks
+bctl checkout aws-admin-prod --eks
 kubectl get pods
 ```
 
@@ -114,7 +114,7 @@ You can see GCP and Azure profiles in `bctl profiles list` and pick them in the 
     pip install pybritive[aws]
     pybritive configure tenant -t acme
     pybritive login
-    pybritive checkout "AWS/Prod/LLMG Admin" -m integrate
+    pybritive checkout "AWS/Prod/Admin" -m integrate
     aws s3 ls --profile dev
     ```
 

@@ -39,7 +39,7 @@ profiles on demand if anything is missing. The alias is optional -- if
 omitted, you'll get an interactive picker.
 
 Matching rules for the alias:
-  1. Exact alias match (e.g. 'llmg-admin-prod')
+  1. Exact alias match (e.g. 'aws-admin-prod')
   2. Substring match on alias or Britive path (e.g. 'sandbox')
   3. Fuzzy match as a last resort
 
