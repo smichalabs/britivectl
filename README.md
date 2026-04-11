@@ -14,7 +14,8 @@ Full docs: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)
 **macOS**
 
 ```bash
-brew install smichalabs/tap/bctl
+brew tap smichalabs/tap
+brew install bctl
 ```
 
 **Linux / WSL**

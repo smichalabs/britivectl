@@ -3,7 +3,8 @@
 ## 30 seconds from install to credentials
 
 ```bash
-brew install smichalabs/tap/bctl
+brew tap smichalabs/tap
+brew install bctl
 bctl
 ```
 
