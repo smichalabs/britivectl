@@ -15,10 +15,10 @@ linters:
   settings:
     errcheck:
       # These functions return errors that are not actionable in practice:
-      # - Close() on deferred readers/writers — standard Go pattern
-      # - os.Remove/RemoveAll in defer — cleanup on exit, failure is benign
-      # - fmt.Fprintf/Println to terminal — stdout/stderr writes don't fail
-      # - os.Setenv — only used for internal env flags
+      # - Close() on deferred readers/writers -- standard Go pattern
+      # - os.Remove/RemoveAll in defer -- cleanup on exit, failure is benign
+      # - fmt.Fprintf/Println to terminal -- stdout/stderr writes don't fail
+      # - os.Setenv -- only used for internal env flags
       exclude-functions:
         - (io.Closer).Close
         - (*os.File).Close
@@ -38,17 +38,22 @@ linters:
         - name: var-naming
           severity: warning
 
-issues:
-  exclude-rules:
-    # Test files — loose error handling is acceptable
-    - path: "_test\\.go"
-      linters: [errcheck, revive]
-    # Exported names that stutter would require breaking API changes
-    - text: "stutters"
-      linters: [revive]
-    # version package vars are set via ldflags
-    - path: "pkg/version/"
-      linters: [revive]
+  exclusions:
+    rules:
+      # Test files -- loose error handling is acceptable
+      - path: '_test\.go'
+        linters:
+          - errcheck
+          - revive
+      # Exported names that stutter would require breaking API changes
+      - text: "stutters"
+        linters:
+          - revive
+      # version package vars are set via ldflags
+      - path: 'pkg/version/'
+        linters:
+          - revive
 
+issues:
   max-issues-per-linter: 50
   max-same-issues: 5
