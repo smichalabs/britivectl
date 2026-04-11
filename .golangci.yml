@@ -11,6 +11,9 @@ linters:
     - noctx
     - misspell
     - unparam
+    - errorlint      # catches incorrect error wrapping and type assertions
+    - contextcheck   # detects functions that should accept context.Context
+    - nilnil         # catches returning (nil, nil) from funcs that return (T, error)
 
   settings:
     errcheck:
