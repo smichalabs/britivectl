@@ -24,7 +24,7 @@ bctl issue feature  # opens the feature-request template
 
 ## Where issues land
 
-The public [`smichalabs/britivectl-releases`](https://github.com/smichalabs/britivectl-releases) repository. Both maintainers are auto-assigned and notified.
+The public [`smichalabs/britivectl`](https://github.com/smichalabs/britivectl) repository. Both maintainers are auto-assigned and notified.
 
 ## See also
 

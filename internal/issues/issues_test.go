@@ -19,7 +19,7 @@ func TestBuildURL_BugTemplate(t *testing.T) {
 	if parsed.Host != "github.com" {
 		t.Errorf("host = %q, want github.com", parsed.Host)
 	}
-	wantPath := "/smichalabs/britivectl-releases/issues/new"
+	wantPath := "/smichalabs/britivectl/issues/new"
 	if parsed.Path != wantPath {
 		t.Errorf("path = %q, want %q", parsed.Path, wantPath)
 	}

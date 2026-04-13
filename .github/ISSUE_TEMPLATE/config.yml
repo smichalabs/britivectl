@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://smichalabs.dev/utils/bctl/
+    about: Read the docs before filing -- your question may already be answered.
+  - name: Feedback page
+    url: https://smichalabs.dev/utils/bctl/feedback/
+    about: How to file a good bug report or feature request with `bctl issue`.
