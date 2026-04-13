@@ -1,7 +1,7 @@
 site_name: bctl
 docs_dir: docs/docs
 site_description: A fast CLI for Britive JIT access management
-site_url: https://smichalabs.dev/utils/bctl
+site_url: https://smichalabs.dev/utils/bctl/
 
 theme:
   name: material
