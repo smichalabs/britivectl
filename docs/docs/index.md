@@ -37,7 +37,22 @@ Shell completions and platform-specific notes are in the [Install reference](ins
 bctl
 ```
 
-bctl opens an interactive picker pre-filled with every profile you have access to:
+bctl opens a command picker with every action it can do. **checkout** is already highlighted:
+
+```
+┌ bctl -- pick a command (type to filter, enter to run, esc to cancel) ┐
+│                                                                      │
+│ > checkout    Check out a Britive profile                            │
+│   status      Show active profile checkouts                          │
+│   checkin     Return a checked-out profile early                     │
+│   profiles    Manage Britive profiles                                │
+│   eks         EKS cluster operations                                 │
+│   ...                                                                │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Press **enter**. The profile picker opens with every profile you have access to:
 
 ```
 ┌ Pick a profile (type to filter, enter to select, esc to cancel) ┐
@@ -51,13 +66,20 @@ bctl opens an interactive picker pre-filled with every profile you have access t
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Select a profile and press enter. Credentials are written to `~/.aws/credentials` and you can immediately use them:
+Select a profile and press **enter**. Credentials are written to `~/.aws/credentials` and you can immediately use them:
 
 ```bash
 aws s3 ls --profile aws-admin-prod
 ```
 
-The first run on a new machine prompts you once for your Britive tenant and opens the browser for SSO. Every run after that goes straight to the picker.
+You can also skip either or both pickers by passing arguments directly:
+
+```bash
+bctl checkout                   # skips the command picker, opens the profile picker
+bctl checkout aws-admin-prod    # skips both pickers, checks out immediately
+```
+
+The first run on a new machine prompts you once for your Britive tenant and opens the browser for SSO. Every run after that goes straight to the pickers.
 
 ## Supported clouds
 
