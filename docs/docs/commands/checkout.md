@@ -43,7 +43,7 @@ bctl checkout dev
 bctl checkout dev --eks
 
 # Get credentials as shell exports
-eval $(bctl checkout dev --output env)
+eval "$(bctl checkout dev --output env)"
 
 # Use as AWS credential_process
 bctl checkout dev --output process

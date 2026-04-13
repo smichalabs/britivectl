@@ -1,20 +1,35 @@
-# bctl -- Britive CLI
+# bctl
 
 [![CI](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml/badge.svg)](https://github.com/smichalabs/britivectl/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/smichalabs/britivectl)](https://goreportcard.com/report/github.com/smichalabs/britivectl)
 
-A command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com).
+A command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com). Single binary, interactive profile picker, automatic session refresh, and credential caching so repeat checkouts are instant.
 
 **Documentation: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)**
 
 ## Install
+
+**macOS**
 
 ```bash
 brew tap smichalabs/tap
 brew install bctl
 ```
 
-For Linux, WSL, or installing from source, see the [Install](https://smichalabs.dev/utils/bctl/install/) page.
+**Linux / WSL**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
+```
+
+**Build from source** (requires Go 1.25+)
+
+```bash
+git clone https://github.com/smichalabs/britivectl.git
+cd britivectl
+make install
+```
 
 ## Use
 
@@ -22,11 +37,67 @@ For Linux, WSL, or installing from source, see the [Install](https://smichalabs.
 bctl
 ```
 
-See the [Quick Start](https://smichalabs.dev/utils/bctl/quickstart/) for the common workflows.
+bctl opens a command picker. Select **checkout** (highlighted by default), then pick a profile from the fuzzy-searchable list. Credentials are written to `~/.aws/credentials`.
+
+```bash
+aws s3 ls --profile aws-admin-prod
+```
+
+Skip the pickers if you already know which profile you want:
+
+```bash
+bctl checkout aws-admin-prod    # skips both pickers, checks out immediately
+bctl checkout admin-prod        # substring match works too
+```
+
+## Supported clouds
+
+| Cloud | Status |
+|---|---|
+| AWS   | Fully supported. Credentials written to `~/.aws/credentials`. |
+| GCP   | Profiles browsable. Credential injection on the roadmap. |
+| Azure | Profiles browsable. Credential injection on the roadmap. |
+
+## Features
+
+- **Interactive pickers** -- command picker and fuzzy-searchable profile picker via bubbletea TUI
+- **Automatic session refresh** -- bctl re-authenticates via browser SSO when the JWT expires, no manual `bctl login` needed
+- **Credential caching** -- repeat checkouts of the same profile skip the Britive API entirely if the credentials still have life. Pass `--force` to override.
+- **EKS in one step** -- `bctl checkout <profile> --eks` checks out credentials and updates kubeconfig for every cluster on the profile
+- **Output formats** -- `awscreds` (default), `env`, `process` (AWS credential_process), `json`
+- **In-CLI issue filing** -- `bctl issue bug` and `bctl issue feature` open pre-filled GitHub issues in your browser
+- **Supply chain security** -- every release ships with CycloneDX SBOMs and cosign keyless signatures
+
+## Configuration
+
+Config file: `~/.config/bctl/config.yaml`
+
+| Variable | Description |
+|---|---|
+| `BCTL_TENANT` | Override tenant from config |
+| `BCTL_TOKEN` | Use this API token (skips keychain) |
+| `BCTL_OUTPUT` | Default output format |
+| `BCTL_REGION` | Default AWS region |
+| `BCTL_NO_COLOR` | Disable color output |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and the PR process. The release pipeline is documented in [docs/release-process.md](docs/release-process.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, commit conventions, and the PR process. The full release pipeline is documented in [docs/release-process.md](docs/release-process.md).
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## Issues
+
+Bug reports and feature requests: [GitHub Issues](https://github.com/smichalabs/britivectl/issues)
+
+Or use the built-in CLI:
+
+```bash
+bctl issue bug
+bctl issue feature
+```
 
 ## License
 

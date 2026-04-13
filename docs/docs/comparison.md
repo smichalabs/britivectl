@@ -9,7 +9,7 @@ How bctl compares to the two existing ways to get JIT credentials from Britive o
 | **Subsequent logins** | Sign in every time, click through every time | `pybritive login` again when token expires | Auto-refreshes the session in the background. You sign in once a day at most. |
 | **Repeat checkouts of the same profile** | Full clickfest again | Full API call again | Instant. Skips the Britive API if credentials still have life. |
 | **Profile name memorization** | Visual click path | Type the exact full Britive path | Fuzzy search the alias, or pass any partial name |
-| **Footprint on your machine** | Browser tab + manual paste | ~100 MB Python stack | Single ~9 MB binary, no runtime |
+| **Footprint on your machine** | Browser tab + manual paste | ~100 MB Python stack | Single ~4 MB binary, no runtime |
 | **EKS kubeconfig setup** | Manual `aws eks update-kubeconfig` after every checkout | Manual after every checkout | `--eks` flag does it in the same command |
 | **Shell scriptability** | None | Yes | Yes (`-o env`, `-o process`, `-o json`) |
 | **AWS credential_process** | Not supported | Manual config | First-class -- `bctl checkout <name> -o process` |
