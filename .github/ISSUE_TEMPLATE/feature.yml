@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest a new capability or improvement for bctl.
+title: "[feature] "
+labels:
+  - enhancement
+assignees:
+  - smicha
+  - hackerzhut
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature.
+
+        Before filing, please search the existing issues to see if the same idea has already been raised.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation that prompted this request. What were you trying to do, and what got in the way?
+      placeholder: |
+        I want to do X. Today I have to do Y, which is awkward because Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A clear description of what you'd like bctl to do. CLI shape, flag names, expected output -- whatever you have in mind.
+      placeholder: |
+        Add a `bctl <new-command>` that does ...
+        Or add a `--new-flag` to `bctl checkout` that ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways you could solve the problem, and why they don't work as well.
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: bctl version and OS. `bctl issue feature` fills this in automatically.
+      placeholder: |
+        - bctl version: `vX.Y.Z`
+        - OS / arch: `darwin/arm64`
+    validations:
+      required: false

@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in bctl is not working as expected.
+title: "[bug] "
+labels:
+  - bug
+assignees:
+  - smicha
+  - hackerzhut
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Before filing, please search the existing issues to see if your problem has already been reported.
+
+        If you ran `bctl issue bug`, the **Environment** section at the bottom of the body should already be filled in for you. If you opened this page directly, please run `bctl version` and paste the output into the Environment field below.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of what bctl did, and what you expected it to do instead.
+      placeholder: |
+        I ran `bctl checkout aws-admin-prod` and bctl reported X.
+        I expected bctl to do Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands you ran, in order. If the issue depends on configuration, mention that.
+      placeholder: |
+        1. brew install bctl
+        2. bctl init
+        3. bctl checkout some-profile
+        4. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: bctl version, OS, and any relevant context. `bctl issue bug` fills this in automatically.
+      placeholder: |
+        - bctl version: `vX.Y.Z`
+        - OS / arch: `darwin/arm64`
+        - Britive tenant: `configured`
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste any error messages, stack traces, or `bctl doctor` output. Please redact secrets.
+      render: shell
+    validations:
+      required: false

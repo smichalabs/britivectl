@@ -6,12 +6,30 @@ It runs as a single binary, fuzzy-searches your entitled profiles, and writes cr
 
 ## Install
 
+**macOS**
+
 ```bash
 brew tap smichalabs/tap
 brew install bctl
 ```
 
-For Linux, WSL, or installing from source, see [Install](install.md).
+**Linux / WSL**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
+```
+
+Auto-detects your distro and installs the matching `.deb`, `.rpm`, or tarball. On WSL, install `wslu` first (`sudo apt install wslu`) so browser-based SSO works.
+
+**Build from source** (requires Go 1.25+)
+
+```bash
+git clone https://github.com/smichalabs/britivectl.git
+cd britivectl
+make install
+```
+
+Shell completions and platform-specific notes are in the [Install reference](install.md).
 
 ## Use
 

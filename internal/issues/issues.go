@@ -11,10 +11,8 @@ import (
 	"strings"
 )
 
-// Repo is the GitHub repository where bctl issues are filed. The bctl source
-// repo is private, so issues live on the public releases repo where any user
-// can reach them without needing source access.
-const Repo = "smichalabs/britivectl-releases"
+// Repo is the GitHub repository where bctl issues are filed.
+const Repo = "smichalabs/britivectl"
 
 // NewURL is the GitHub "new issue" endpoint that accepts query parameters
 // for template selection and body pre-fill.
