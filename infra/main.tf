@@ -147,7 +147,15 @@ resource "aws_cloudfront_function" "rewrite_index" {
       if (uri.endsWith('/')) {
         request.uri += 'index.html';
       } else if (!uri.includes('.')) {
-        request.uri += '/index.html';
+        // Redirect to the trailing-slash URL instead of silently rewriting.
+        // Without the redirect the browser URL bar still shows /utils/bctl
+        // (no slash), so it treats bctl as a file in /utils/ and resolves
+        // relative CSS/JS paths against /utils/ instead of /utils/bctl/.
+        return {
+          statusCode: 301,
+          statusDescription: 'Moved Permanently',
+          headers: { location: { value: uri + '/' } }
+        };
       }
       return request;
     }
