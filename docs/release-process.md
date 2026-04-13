@@ -222,9 +222,10 @@ Defined in `.goreleaser.yaml` and triggered by tag pushes via
 - **Homebrew formula update** in the `smichalabs/homebrew-tap` repo
   pointing at the new release.
 
-The source repo (`smichalabs/britivectl`) stays private. Only the
-releases repo and the tap are public, which lets `brew install` work
-without authentication while keeping the source closed.
+The source repo (`smichalabs/britivectl`) is public. Binary releases
+are published to the separate `smichalabs/britivectl-releases` repo
+so that release artifacts are cleanly separated from source history.
+The Homebrew tap points at the releases repo for downloads.
 
 ---
 

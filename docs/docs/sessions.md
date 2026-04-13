@@ -109,12 +109,12 @@ rm -rf ~/.cache/bctl/checkouts
 
 ## What `bctl status` shows
 
-`bctl status` reads the cache files (and Britive's `app-access-status` endpoint) and prints what is currently checked out, with how much life is left on each:
+`bctl status` queries the Britive API and prints what is currently checked out:
 
 ```text
-ALIAS                  CLOUD  EXPIRES IN
-aws-admin-prod         aws    3h 47m
-gcp-admin-sandbox      gcp    1h 02m
+PROFILE              STATUS       EXPIRES
+aws-admin-prod       checkedOut   2026-04-13T18:30:00Z
+aws-data-staging     checkedOut   2026-04-13T19:00:00Z
 ```
 
 This is the source of truth if you're trying to remember whether you already have credentials for a profile.

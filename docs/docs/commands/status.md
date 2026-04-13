@@ -11,7 +11,7 @@ bctl status
 ## Description
 
 Queries the Britive API for all active sessions belonging to the current user
-and renders them in a table with profile name, cloud, and expiry time.
+and renders them in a table with the profile alias, checkout status, and expiry.
 
 ## Examples
 
@@ -22,9 +22,9 @@ bctl status
 Example output:
 
 ```
-PROFILE       CLOUD   EXPIRES
-dev           aws     2026-04-09T14:30:00Z
-staging-gcp   gcp     2026-04-09T15:00:00Z
+PROFILE              STATUS       EXPIRES
+aws-admin-prod       checkedOut   2026-04-13T18:30:00Z
+aws-data-staging     checkedOut   2026-04-13T19:00:00Z
 ```
 
 ## See also
