@@ -137,7 +137,7 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", match.Alias, checkedOut.Expiration))
 
 	// 6. Persist the freshness state for next time.
-	if err := saveCheckoutState(match.Alias, checkedOut.TransactionID, creds.Expiration); err != nil {
+	if err := saveCheckoutState(match.Alias, checkedOut.TransactionID, checkedOut.Expiration); err != nil {
 		// Non-fatal -- the credentials are valid even if we cannot record
 		// the cache. Print a warning so the user can see what happened.
 		output.Warning("could not save checkout cache: %v", err)
