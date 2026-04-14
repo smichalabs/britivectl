@@ -34,29 +34,35 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 	SilenceUsage: true,
 }
 
-// Execute runs the root command with the given context. The context is
-// propagated to all subcommand handlers via cmd.Context() and should be
-// signal-aware so Ctrl-C cancels in-flight API calls.
+// Execute runs the root command with the given context and returns the
+// process exit code. The context is propagated to all subcommand handlers
+// via cmd.Context() and should be signal-aware so Ctrl-C cancels in-flight
+// API calls.
 //
 // When invoked with no arguments, Execute opens an fzf-style command picker
 // so the user can browse or fuzzy-search the available subcommands. The
 // default selection is 'checkout' so hitting enter immediately runs the
 // zero-touch flow.
-func Execute(ctx context.Context) {
+//
+// Returns an exit code instead of calling os.Exit so the caller (main) can
+// run cleanup defers -- specifically output.ResetTTY() -- before the process
+// terminates. os.Exit skips defers; returning lets them fire.
+func Execute(ctx context.Context) int {
 	if shouldShowCommandPicker() {
 		chosen, err := resolver.PickCommand(ctx, commandChoices())
 		if err != nil {
 			if errors.Is(err, resolver.ErrCanceled) {
-				os.Exit(0)
+				return 0
 			}
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
 		os.Args = append(os.Args, chosen)
 	}
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 // shouldShowCommandPicker reports whether the user invoked 'bctl' with no
