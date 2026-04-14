@@ -134,8 +134,15 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	// Britive returns HTTP 400 "already checked out" and the user sees a
 	// confusing error for what should be a success.
 	if !force {
-		if existing, err := findActiveSession(ctx, client, match.Profile.ProfileID); err == nil && existing != nil {
+		existing, err := findActiveSession(ctx, client, match.Profile.ProfileID)
+		switch {
+		case err == nil:
 			return reuseExistingSession(ctx, client, match, existing, eks, outFmt)
+		case errors.Is(err, errNoActiveSession):
+			// No active session; fall through to a fresh checkout.
+		default:
+			// MySessions failed for another reason. Fall through and let the
+			// fresh checkout surface a real error if the API is broken.
 		}
 	}
 
@@ -168,10 +175,16 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	return nil
 }
 
+// errNoActiveSession indicates findActiveSession looked at all of the user's
+// current sessions and none of them matched the requested profile. Distinct
+// from a real API failure -- the caller treats this as "do a fresh checkout"
+// rather than as an error to surface.
+var errNoActiveSession = errors.New("no active session for profile")
+
 // findActiveSession returns the active Britive session for the given profile
-// ID, or nil if none is active. An error from the API is returned to let the
-// caller decide whether to fall through to a fresh checkout (which will
-// surface the real error) or propagate it.
+// ID. Returns errNoActiveSession (wrapped via errors.Is) if the user has no
+// active checkout for this profile, or the API error if MySessions failed.
+// Never returns (nil, nil) so callers always have a definite signal.
 func findActiveSession(ctx context.Context, client *britive.Client, profileID string) (*britive.CheckedOutProfile, error) {
 	sessions, err := client.MySessions(ctx)
 	if err != nil {
@@ -183,7 +196,7 @@ func findActiveSession(ctx context.Context, client *britive.Client, profileID st
 			return s, nil
 		}
 	}
-	return nil, nil
+	return nil, errNoActiveSession
 }
 
 // reuseExistingSession fetches credentials for an already-active checkout and
