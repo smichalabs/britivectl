@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2](https://github.com/smichalabs/britivectl/compare/v0.6.1...v0.6.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* **output:** reset TTY on exit so cursor is restored after every command ([#59](https://github.com/smichalabs/britivectl/issues/59)) ([7ec312e](https://github.com/smichalabs/britivectl/commit/7ec312e0815d8002a8b8aa52c17b47d44acc58b6))
+
 ## [0.6.1](https://github.com/smichalabs/britivectl/compare/v0.6.0...v0.6.1) (2026-04-14)
 
 
