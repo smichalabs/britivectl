@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/smichalabs/britivectl/compare/v0.5.0...v0.6.0) (2026-04-14)
+
+
+### Features
+
+* move issue tracker to source repo and show all install options ([#50](https://github.com/smichalabs/britivectl/issues/50)) ([4e01b4d](https://github.com/smichalabs/britivectl/commit/4e01b4dff8c77a3d65a8576a68eddc1cca45c8f3))
+
+
+### Bug Fixes
+
+* **checkout:** use checkedOut.Expiration (not creds.Expiration) for cache save ([#54](https://github.com/smichalabs/britivectl/issues/54)) ([cf4a011](https://github.com/smichalabs/britivectl/commit/cf4a01168df86a80d11934a62ab2c8cbea3771d3))
+* **docs:** add trailing slash to site_url so relative assets resolve correctly ([#47](https://github.com/smichalabs/britivectl/issues/47)) ([03b4dc4](https://github.com/smichalabs/britivectl/commit/03b4dc401e05f085cb535591f97cb1382bf2c28e))
+* **docs:** show both command picker and profile picker in the Use section ([#52](https://github.com/smichalabs/britivectl/issues/52)) ([6661d17](https://github.com/smichalabs/britivectl/commit/6661d17033044f603bc84b3bbb1123a41e6e41ca))
+* **infra:** redirect bare directory URLs to trailing-slash for correct CSS resolution ([#49](https://github.com/smichalabs/britivectl/issues/49)) ([497c057](https://github.com/smichalabs/britivectl/commit/497c0570cc7901ae9949318e53acb0244b20e24d))
+
 ## [0.5.0](https://github.com/smichalabs/britivectl/compare/v0.4.0...v0.5.0) (2026-04-11)
 
 
