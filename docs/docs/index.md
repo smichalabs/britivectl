@@ -2,34 +2,30 @@
 
 bctl is a command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com).
 
-It runs as a single binary, fuzzy-searches your entitled profiles, and writes credentials to your local cloud config (e.g. `~/.aws/credentials`) so you can immediately run `aws`, `kubectl`, `terraform`, or anything else that reads them.
-
-## Install
-
-**macOS**
+## Get started in 60 seconds
 
 ```bash
 brew tap smichalabs/tap
 brew install bctl
+bctl
 ```
 
-**Linux / WSL**
+That's the whole flow. Pick a profile from the list, hit enter, your AWS credentials are now in `~/.aws/credentials`. You can immediately:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/install.sh | bash
+aws s3 ls --profile aws-admin-prod
 ```
 
-Auto-detects your distro and installs the matching `.deb`, `.rpm`, or tarball. On WSL, install `wslu` first (`sudo apt install wslu`) so browser-based SSO works.
+The first time you run bctl on a new machine, it asks for your Britive tenant and opens your browser for SSO. Twenty seconds, one time.
 
-**Build from source** (requires Go 1.25+)
+!!! tip "Not on macOS?"
+    Linux, WSL, and build-from-source instructions are on the [Install page](install.md).
 
-```bash
-git clone https://github.com/smichalabs/britivectl.git
-cd britivectl
-make install
-```
+## What it does
 
-Shell completions and platform-specific notes are in the [Install reference](install.md).
+bctl is a single binary that fuzzy-searches your entitled profiles and writes credentials to your local cloud config (e.g. `~/.aws/credentials`) so you can immediately run `aws`, `kubectl`, `terraform`, or anything else that reads them.
+
+It also auto-refreshes your Britive session in the background and caches credentials locally so repeat checkouts of the same profile are instant. See [Sessions & caching](sessions.md) for details.
 
 ## Use
 

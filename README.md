@@ -4,11 +4,33 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/smichalabs/britivectl)](https://goreportcard.com/report/github.com/smichalabs/britivectl)
 
-A command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com). Single binary, interactive profile picker, automatic session refresh, and credential caching so repeat checkouts are instant.
+A command-line tool for getting just-in-time cloud credentials from [Britive](https://www.britive.com).
 
-**Documentation: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)**
+## Get started in 60 seconds
 
-## Install
+```bash
+brew tap smichalabs/tap
+brew install bctl
+bctl
+```
+
+That's the whole flow. Pick a profile from the list, hit enter, your AWS credentials are now in `~/.aws/credentials`. You can immediately:
+
+```bash
+aws s3 ls --profile aws-admin-prod
+```
+
+The first time you run bctl on a new machine it asks for your Britive tenant and opens your browser for SSO. Twenty seconds, one time.
+
+> Linux, WSL, or build from source: see [Install](https://smichalabs.dev/utils/bctl/install/).
+
+**Full documentation: [smichalabs.dev/utils/bctl](https://smichalabs.dev/utils/bctl/)**
+
+## What it does
+
+bctl wraps the Britive REST API to make temporary cloud credential checkout frictionless. Single binary, interactive profile picker, automatic session refresh, and credential caching so repeat checkouts are instant.
+
+## Install (all platforms)
 
 **macOS**
 
