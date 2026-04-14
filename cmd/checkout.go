@@ -125,10 +125,23 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 		return fmt.Errorf("profile %q is missing API IDs -- run 'bctl profiles sync' to update", match.Alias)
 	}
 
+	client := newAPIClient(ready.Tenant, ready.Token)
+
+	// 5a. Check Britive for an already-active session before attempting a new
+	// checkout. This handles the case where the user already has credentials
+	// live on the Britive side but no local cache (e.g. same profile used from
+	// a different project directory or a different machine). Without this,
+	// Britive returns HTTP 400 "already checked out" and the user sees a
+	// confusing error for what should be a success.
+	if !force {
+		if existing, err := findActiveSession(ctx, client, match.Profile.ProfileID); err == nil && existing != nil {
+			return reuseExistingSession(ctx, client, match, existing, eks, outFmt)
+		}
+	}
+
 	spin := output.NewSpinner(fmt.Sprintf("Checking out %s...", match.Alias))
 	spin.Start()
 
-	client := newAPIClient(ready.Tenant, ready.Token)
 	checkedOut, creds, err := client.Checkout(ctx, match.Profile.ProfileID, match.Profile.EnvironmentID)
 	if err != nil {
 		spin.Fail(fmt.Sprintf("Checkout failed: %v", err))
@@ -149,6 +162,50 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	}
 
 	// 8. Optional EKS kubeconfig update.
+	if eks {
+		return connectEKS(ctx, match, creds)
+	}
+	return nil
+}
+
+// findActiveSession returns the active Britive session for the given profile
+// ID, or nil if none is active. An error from the API is returned to let the
+// caller decide whether to fall through to a fresh checkout (which will
+// surface the real error) or propagate it.
+func findActiveSession(ctx context.Context, client *britive.Client, profileID string) (*britive.CheckedOutProfile, error) {
+	sessions, err := client.MySessions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range sessions {
+		s := &sessions[i]
+		if s.CheckedIn == nil && s.PapID == profileID {
+			return s, nil
+		}
+	}
+	return nil, nil
+}
+
+// reuseExistingSession fetches credentials for an already-active checkout and
+// injects them locally without creating a new checkout on the Britive side.
+// Britive does not allow two concurrent checkouts for the same profile, so
+// when credentials are already live we grab them and move on.
+func reuseExistingSession(ctx context.Context, client *britive.Client, match resolver.Match, existing *britive.CheckedOutProfile, eks bool, outFmt string) error {
+	creds, err := client.GetCredentials(ctx, existing.TransactionID)
+	if err != nil {
+		return fmt.Errorf("fetching credentials for existing checkout: %w", err)
+	}
+
+	output.Success("Reusing existing checkout for %s (expires: %s)", match.Alias, existing.Expiration)
+
+	if err := saveCheckoutState(match.Alias, existing.TransactionID, existing.Expiration); err != nil {
+		output.Warning("could not save checkout cache: %v", err)
+	}
+
+	if err := injectAWS(match, creds, outFmt); err != nil {
+		return err
+	}
+
 	if eks {
 		return connectEKS(ctx, match, creds)
 	}
