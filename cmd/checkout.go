@@ -122,7 +122,7 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	// stdout (env, process, json) -- those callers want the actual values
 	// printed, not a "still valid" message.
 	if !force && outFmtWritesAWSCredsFile(outFmt) {
-		if cached, err := config.LoadCheckoutState(match.Alias); err == nil && cached.IsFresh(freshnessBuffer) {
+		if cached, err := config.LoadCheckoutState(ready.Tenant, match.Alias); err == nil && cached.IsFresh(freshnessBuffer) {
 			output.Success("%s is already checked out (expires in %s)", match.Alias, formatDuration(cached.Remaining()))
 			fmt.Println("Use --force to refresh now.")
 			if eks {
@@ -151,7 +151,7 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 		existing, err := findActiveSession(ctx, client, match.Profile.ProfileID)
 		switch {
 		case err == nil:
-			return reuseExistingSession(ctx, client, match, existing, eks, outFmt)
+			return reuseExistingSession(ctx, client, ready.Tenant, match, existing, eks, outFmt)
 		case errors.Is(err, errNoActiveSession):
 			// No active session; fall through to a fresh checkout.
 		default:
@@ -171,7 +171,7 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", match.Alias, checkedOut.Expiration))
 
 	// 6. Persist the freshness state for next time.
-	if err := saveCheckoutState(match.Alias, checkedOut.TransactionID, checkedOut.Expiration); err != nil {
+	if err := saveCheckoutState(ready.Tenant, match.Alias, checkedOut.TransactionID, checkedOut.Expiration); err != nil {
 		// Non-fatal -- the credentials are valid even if we cannot record
 		// the cache. Print a warning so the user can see what happened.
 		output.Warning("could not save checkout cache: %v", err)
@@ -217,7 +217,7 @@ func findActiveSession(ctx context.Context, client *britive.Client, profileID st
 // injects them locally without creating a new checkout on the Britive side.
 // Britive does not allow two concurrent checkouts for the same profile, so
 // when credentials are already live we grab them and move on.
-func reuseExistingSession(ctx context.Context, client *britive.Client, match resolver.Match, existing *britive.CheckedOutProfile, eks bool, outFmt string) error {
+func reuseExistingSession(ctx context.Context, client *britive.Client, tenant string, match resolver.Match, existing *britive.CheckedOutProfile, eks bool, outFmt string) error {
 	creds, err := client.GetCredentials(ctx, existing.TransactionID)
 	if err != nil {
 		return fmt.Errorf("fetching credentials for existing checkout: %w", err)
@@ -225,7 +225,7 @@ func reuseExistingSession(ctx context.Context, client *britive.Client, match res
 
 	output.Success("Reusing existing checkout for %s (expires: %s)", match.Alias, existing.Expiration)
 
-	if err := saveCheckoutState(match.Alias, existing.TransactionID, existing.Expiration); err != nil {
+	if err := saveCheckoutState(tenant, match.Alias, existing.TransactionID, existing.Expiration); err != nil {
 		output.Warning("could not save checkout cache: %v", err)
 	}
 
@@ -257,7 +257,7 @@ func outFmtWritesAWSCredsFile(outFmt string) bool {
 // invocations can skip the Britive API while the credentials are still
 // valid. The expiration string comes from the Britive API; if it cannot be
 // parsed, the cache is skipped (the checkout itself still succeeded).
-func saveCheckoutState(alias, txnID, expiration string) error {
+func saveCheckoutState(tenant, alias, txnID, expiration string) error {
 	expiresAt, err := time.Parse(time.RFC3339, expiration)
 	if err != nil {
 		// Britive sometimes uses subtly different formats. Try a couple
@@ -279,6 +279,7 @@ func saveCheckoutState(alias, txnID, expiration string) error {
 	}
 
 	return config.SaveCheckoutState(&config.CheckoutState{
+		Tenant:        tenant,
 		Alias:         alias,
 		TransactionID: txnID,
 		CheckedOutAt:  time.Now().UTC(),

@@ -21,7 +21,7 @@ func TestCheckoutStatePath_Sanitizes(t *testing.T) {
 
 func TestLoadCheckoutState_Missing(t *testing.T) {
 	setupXDG(t)
-	state, err := config.LoadCheckoutState("nonexistent")
+	state, err := config.LoadCheckoutState("", "nonexistent")
 	if !errors.Is(err, config.ErrCheckoutStateMiss) {
 		t.Errorf("err = %v, want ErrCheckoutStateMiss", err)
 	}
@@ -43,7 +43,7 @@ func TestSaveAndLoadCheckoutState(t *testing.T) {
 		t.Fatalf("SaveCheckoutState() error = %v", err)
 	}
 
-	loaded, err := config.LoadCheckoutState("aws-admin-prod")
+	loaded, err := config.LoadCheckoutState("", "aws-admin-prod")
 	if err != nil {
 		t.Fatalf("LoadCheckoutState() error = %v", err)
 	}
@@ -81,7 +81,7 @@ func TestLoadCheckoutState_Malformed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := config.LoadCheckoutState("broken"); err == nil {
+	if _, err := config.LoadCheckoutState("", "broken"); err == nil {
 		t.Fatal("expected error for malformed state file, got nil")
 	}
 }
@@ -101,8 +101,28 @@ func TestDeleteCheckoutState(t *testing.T) {
 	if err := config.DeleteCheckoutState("to-delete"); err != nil {
 		t.Fatalf("DeleteCheckoutState() error = %v", err)
 	}
-	if _, err := config.LoadCheckoutState("to-delete"); !errors.Is(err, config.ErrCheckoutStateMiss) {
+	if _, err := config.LoadCheckoutState("", "to-delete"); !errors.Is(err, config.ErrCheckoutStateMiss) {
 		t.Errorf("after delete, LoadCheckoutState err = %v, want ErrCheckoutStateMiss", err)
+	}
+}
+
+func TestLoadCheckoutState_TenantMismatch(t *testing.T) {
+	setupXDG(t)
+
+	if err := config.SaveCheckoutState(&config.CheckoutState{
+		Tenant:       "acme",
+		Alias:        "aws-admin-prod",
+		CheckedOutAt: time.Now(),
+		ExpiresAt:    time.Now().Add(1 * time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := config.LoadCheckoutState("beta", "aws-admin-prod"); !errors.Is(err, config.ErrCheckoutStateMiss) {
+		t.Errorf("tenant mismatch: err = %v, want ErrCheckoutStateMiss", err)
+	}
+	if _, err := config.LoadCheckoutState("acme", "aws-admin-prod"); err != nil {
+		t.Errorf("matching tenant: err = %v, want nil", err)
 	}
 }
 

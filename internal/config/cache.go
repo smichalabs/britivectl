@@ -12,6 +12,10 @@ import (
 // It lives in xdgCacheDir() (not the config file) so that sync is cheap to
 // invalidate and does not churn the user's config on every refresh.
 type ProfilesCache struct {
+	// Tenant records which Britive tenant this cache was synced from. Present
+	// so that switching tenants via --tenant cannot silently hand stale
+	// profile IDs from tenant A to tenant B.
+	Tenant string `json:"tenant,omitempty"`
 	// SyncedAt is the wall-clock time when the cache was last populated.
 	SyncedAt time.Time `json:"syncedAt"`
 	// Profiles is keyed by alias.
@@ -24,9 +28,15 @@ type ProfilesCache struct {
 var ErrCacheMiss = errors.New("profile cache does not exist")
 
 // LoadProfilesCache reads the profile cache from disk. Returns ErrCacheMiss
-// if the file has not been written yet -- callers should check with
-// errors.Is and trigger a sync on first run.
-func LoadProfilesCache() (*ProfilesCache, error) {
+// if the file has not been written yet or if the cached tenant does not match
+// the one the caller is asking about -- both signal "do a fresh sync".
+//
+// Pass an empty tenant to skip tenant validation (used by surfaces like
+// `bctl profiles list` where the current tenant cannot always be resolved,
+// for instance before init has completed). Callers that know the tenant
+// should always pass it so a --tenant switch forces a re-sync rather than
+// silently returning the previous tenant's profile IDs.
+func LoadProfilesCache(tenant string) (*ProfilesCache, error) {
 	path := ProfilesCachePath()
 	data, err := os.ReadFile(path) //nolint:gosec // path is under our controlled cache dir
 	if err != nil {
@@ -39,6 +49,10 @@ func LoadProfilesCache() (*ProfilesCache, error) {
 	var cache ProfilesCache
 	if err := json.Unmarshal(data, &cache); err != nil {
 		return nil, fmt.Errorf("parsing profiles cache: %w", err)
+	}
+
+	if tenant != "" && cache.Tenant != "" && cache.Tenant != tenant {
+		return nil, ErrCacheMiss
 	}
 	return &cache, nil
 }
