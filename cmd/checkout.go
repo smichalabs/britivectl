@@ -379,12 +379,20 @@ func injectAWS(match resolver.Match, creds *britive.Credentials, outFmt string) 
 		outFmt = "awscreds"
 	}
 
-	cfg, _ := config.Load()
+	// Resolve region with a clear precedence: Britive response > profile
+	// override > config default. Surface a config load error rather than
+	// silently substituting an empty default -- a malformed config file used
+	// to produce empty credentials with no warning.
+	cfg, err := config.Load()
+	if err != nil {
+		output.Warning("could not load config while resolving region: %v", err)
+		cfg = &config.Config{}
+	}
 	region := creds.Region
 	if region == "" {
 		region = match.Profile.Region
 	}
-	if region == "" && cfg != nil {
+	if region == "" {
 		region = cfg.DefaultRegion
 	}
 

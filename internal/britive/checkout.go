@@ -40,11 +40,24 @@ type Credentials struct {
 	Expiration      string `json:"expiration"`
 }
 
+// maxConsecutivePollFailures caps how many back-to-back MySessions errors we
+// will tolerate during a checkout. Transient blips (a dropped connection, a
+// momentary 502) should not kill an otherwise-in-progress checkout; a genuine
+// outage should still give up eventually instead of spinning until the
+// overall deadline. Five retries at 2s each costs at most ~10s.
+const maxConsecutivePollFailures = 5
+
 // Checkout checks out a profile and returns credentials.
 // Flow: POST /api/access/{profileId}/environments/{environmentId}?accessType=PROGRAMMATIC
 //
 //	→ poll until status=checkedOut (respects ctx cancellation)
 //	→ GET /api/access/{transactionId}/tokens
+//
+// Transient HTTP failures during the poll loop (connection resets, 5xx, DNS
+// blips) are retried up to maxConsecutivePollFailures consecutive times
+// before giving up. A single network hiccup should not abort an in-flight
+// checkout, which previously caused users to see a hard failure for what was
+// actually a fully-recoverable glitch.
 //
 // Returns ErrCheckoutTimeout (wrapped) if the context deadline is reached
 // before the checkout completes.
@@ -65,11 +78,27 @@ func (c *Client) Checkout(ctx context.Context, profileID, environmentID string) 
 	pollCtx, cancel := contextWithDefaultDeadline(ctx, 2*time.Minute)
 	defer cancel()
 
+	// NOTE: Britive does not expose a single-transaction status endpoint, so
+	// we poll MySessions (which returns every active session) and filter for
+	// the one we just initiated. If the API gains a narrower endpoint, point
+	// this loop at it to cut bandwidth and server-side load.
+	var consecutiveFailures int
 	for {
 		active, err := c.MySessions(pollCtx)
 		if err != nil {
-			return nil, nil, err
+			consecutiveFailures++
+			if consecutiveFailures >= maxConsecutivePollFailures {
+				return nil, nil, fmt.Errorf("checkout polling failed after %d consecutive errors: %w", consecutiveFailures, err)
+			}
+			select {
+			case <-pollCtx.Done():
+				return nil, nil, fmt.Errorf("%w: %w", ErrCheckoutTimeout, pollCtx.Err())
+			case <-time.After(2 * time.Second):
+				continue
+			}
 		}
+		consecutiveFailures = 0
+
 		for _, p := range active {
 			if p.TransactionID == transactionID && p.Status == "checkedOut" {
 				creds, err := c.GetCredentials(pollCtx, transactionID)
