@@ -23,6 +23,13 @@ import (
 // fresh checkout so downstream tools do not get half-dead credentials.
 const freshnessBuffer = 5 * time.Minute
 
+// errUnsupportedCloud signals that the resolved profile is for a cloud bctl
+// does not yet support (GCP, Azure). The checkout command catches this to
+// suppress cobra's default error print -- printComingSoon already rendered a
+// user-friendly message -- while still exiting non-zero so scripts can tell
+// the checkout did not produce credentials.
+var errUnsupportedCloud = errors.New("profile cloud is not supported")
+
 func newCheckoutCmd() *cobra.Command {
 	var (
 		eks       bool
@@ -59,7 +66,13 @@ Output formats (--output / -o):
 			if len(args) == 1 {
 				query = args[0]
 			}
-			return runCheckout(cmd.Context(), query, eks, force, outputFmt)
+			err := runCheckout(cmd.Context(), query, eks, force, outputFmt)
+			if errors.Is(err, errUnsupportedCloud) {
+				// Message already printed by printComingSoon; suppress cobra's
+				// duplicate "Error: ..." line but keep the non-zero exit.
+				cmd.SilenceErrors = true
+			}
+			return err
 		},
 	}
 
@@ -95,11 +108,12 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 		}
 	}
 
-	// 3b. Non-AWS profiles: friendly "coming soon" message instead of a crash.
-	// This is an intentional feature gap, not an error -- print and exit 0.
+	// 3b. Non-AWS profiles: print the friendly "coming soon" message and exit
+	// non-zero. Scripts that wrap bctl need the exit code to reflect reality
+	// -- "no credentials were produced" must not look like success.
 	if match.Profile.Cloud != "aws" {
 		printComingSoon(match)
-		return nil
+		return errUnsupportedCloud
 	}
 
 	// 4. Skip-if-fresh: if a previous checkout is still valid, do not bother
