@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -42,7 +45,11 @@ func runInit() error {
 	}
 	tenantInput = strings.TrimSpace(tenantInput)
 	if tenantInput != "" {
-		cfg.Tenant = tenantInput
+		cleaned := britive.SanitizeTenant(tenantInput)
+		if cleaned != tenantInput {
+			output.Info("Using tenant %q (stripped URL scheme and britive-app.com suffix)", cleaned)
+		}
+		cfg.Tenant = cleaned
 	}
 	if cfg.Tenant == "" {
 		return fmt.Errorf("tenant is required")
@@ -83,6 +90,16 @@ func runInit() error {
 	}
 
 	output.Success("Configuration saved to %s", config.ConfigPath())
+
+	// Best-effort reachability probe so a typoed tenant is caught here rather
+	// than deep in the login flow. Failure is a warning, not a hard error --
+	// offline setup must still work.
+	probeCtx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	if err := britive.CheckTenantReachable(probeCtx, cfg.Tenant); err != nil {
+		output.Warning("Could not reach https://%s.britive-app.com -- verify the tenant name", cfg.Tenant)
+	}
+
 	return nil
 }
 
