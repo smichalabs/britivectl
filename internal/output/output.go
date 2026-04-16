@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"gopkg.in/yaml.v3"
 )
 
 func init() {
@@ -49,6 +50,17 @@ func PrintJSON(v interface{}) error {
 		return fmt.Errorf("marshalling JSON: %w", err)
 	}
 	fmt.Println(string(data))
+	return nil
+}
+
+// PrintYAML marshals v to YAML and writes to stdout. Used for surfaces where
+// the stored file is YAML, so what users see matches what lives on disk.
+func PrintYAML(v interface{}) error {
+	data, err := yaml.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("marshalling YAML: %w", err)
+	}
+	fmt.Print(string(data))
 	return nil
 }
 

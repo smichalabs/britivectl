@@ -122,7 +122,7 @@ func commandChoices() []resolver.CommandChoice {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/bctl/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", fmt.Sprintf("config file (default: %s)", config.ConfigFilePath()))
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "", "output format: table|json|env|awscreds|process")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable color output")
 	rootCmd.PersistentFlags().StringVar(&tenant, "tenant", "", "Britive tenant name (overrides config)")

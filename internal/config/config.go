@@ -75,6 +75,12 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
 
+	// Empty YAML maps unmarshal to nil, which then serializes as "null" in
+	// JSON/YAML output and confuses users into thinking the field is broken.
+	if cfg.Profiles == nil {
+		cfg.Profiles = map[string]Profile{}
+	}
+
 	return &cfg, nil
 }
 

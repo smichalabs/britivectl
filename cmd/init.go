@@ -83,7 +83,6 @@ func runInit() error {
 	}
 
 	output.Success("Configuration saved to %s", config.ConfigPath())
-	fmt.Printf("\nNext step: run 'bctl login' to authenticate.\n")
 	return nil
 }
 
