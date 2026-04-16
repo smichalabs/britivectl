@@ -6,26 +6,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"unicode"
 
+	"github.com/smichalabs/britivectl/internal/aliases"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-// sanitizeAlias converts a profile name into a shell-friendly alias.
-func sanitizeAlias(name string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(name) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
-			b.WriteRune(r)
-		} else if r == ' ' || r == '/' || r == '.' {
-			b.WriteRune('-')
-		}
-	}
-	return strings.Trim(b.String(), "-")
-}
 
 func newProfilesCmd() *cobra.Command {
 	profilesCmd := &cobra.Command{
@@ -171,7 +158,7 @@ func runProfilesSync(ctx context.Context) error {
 		return err
 	}
 
-	profiles := buildProfileMap(entries)
+	profiles := aliases.BuildMap(entries)
 	if err := config.SaveProfilesCache(&config.ProfilesCache{Profiles: profiles}); err != nil {
 		spin.Fail("Failed to save profile cache")
 		return fmt.Errorf("saving profile cache: %w", err)
