@@ -27,6 +27,10 @@ func CheckoutStatePath(alias string) string {
 // ~/.aws/credentials are still valid -- avoiding a redundant Britive API
 // call when the user runs the same checkout twice in a row.
 type CheckoutState struct {
+	// Tenant records which Britive tenant issued these credentials. Checked
+	// on load so that a --tenant switch cannot silently hand credentials from
+	// tenant A back to a caller now talking to tenant B.
+	Tenant        string    `json:"tenant,omitempty"`
 	Alias         string    `json:"alias"`
 	TransactionID string    `json:"transactionId,omitempty"`
 	CheckedOutAt  time.Time `json:"checkedOutAt"`
@@ -39,8 +43,13 @@ type CheckoutState struct {
 var ErrCheckoutStateMiss = errors.New("checkout state does not exist")
 
 // LoadCheckoutState reads the on-disk state file for the given alias.
-// Returns ErrCheckoutStateMiss if the file does not exist.
-func LoadCheckoutState(alias string) (*CheckoutState, error) {
+// Returns ErrCheckoutStateMiss if the file does not exist or if the stored
+// tenant does not match the one the caller is asking about -- both signal
+// "do a fresh checkout".
+//
+// Pass an empty tenant to skip tenant validation (for tooling that does not
+// know the current tenant yet).
+func LoadCheckoutState(tenant, alias string) (*CheckoutState, error) {
 	path := CheckoutStatePath(alias)
 	data, err := os.ReadFile(path) //nolint:gosec // path is under our controlled cache dir
 	if err != nil {
@@ -53,6 +62,10 @@ func LoadCheckoutState(alias string) (*CheckoutState, error) {
 	var state CheckoutState
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("parsing checkout state: %w", err)
+	}
+
+	if tenant != "" && state.Tenant != "" && state.Tenant != tenant {
+		return nil, ErrCheckoutStateMiss
 	}
 	return &state, nil
 }

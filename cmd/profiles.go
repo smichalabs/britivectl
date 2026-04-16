@@ -47,7 +47,10 @@ populated only for profiles you have customized in config.yaml.`,
 
 func runProfilesList(verbose bool) error {
 	// Prefer the on-disk cache; fall back to legacy config.yaml profiles.
-	cache, err := config.LoadProfilesCache()
+	// Pass an empty tenant so the list surface still works when config is
+	// mid-setup -- tenant mismatch protection is enforced by the checkout and
+	// sync flows where it actually matters for correctness.
+	cache, err := config.LoadProfilesCache("")
 	if err != nil && !errors.Is(err, config.ErrCacheMiss) {
 		return fmt.Errorf("loading profile cache: %w", err)
 	}
@@ -159,7 +162,7 @@ func runProfilesSync(ctx context.Context) error {
 	}
 
 	profiles := aliases.BuildMap(entries)
-	if err := config.SaveProfilesCache(&config.ProfilesCache{Profiles: profiles}); err != nil {
+	if err := config.SaveProfilesCache(&config.ProfilesCache{Tenant: t, Profiles: profiles}); err != nil {
 		spin.Fail("Failed to save profile cache")
 		return fmt.Errorf("saving profile cache: %w", err)
 	}

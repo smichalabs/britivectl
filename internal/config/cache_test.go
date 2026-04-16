@@ -20,7 +20,7 @@ func setupXDG(t *testing.T) {
 
 func TestLoadProfilesCache_Missing(t *testing.T) {
 	setupXDG(t)
-	cache, err := config.LoadProfilesCache()
+	cache, err := config.LoadProfilesCache("")
 	if !errors.Is(err, config.ErrCacheMiss) {
 		t.Fatalf("LoadProfilesCache() error = %v, want ErrCacheMiss", err)
 	}
@@ -41,7 +41,7 @@ func TestSaveAndLoadProfilesCache(t *testing.T) {
 		t.Fatalf("SaveProfilesCache() error = %v", err)
 	}
 
-	loaded, err := config.LoadProfilesCache()
+	loaded, err := config.LoadProfilesCache("")
 	if err != nil {
 		t.Fatalf("LoadProfilesCache() error = %v", err)
 	}
@@ -73,7 +73,7 @@ func TestLoadProfilesCache_Malformed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := config.LoadProfilesCache()
+	_, err := config.LoadProfilesCache("")
 	if err == nil {
 		t.Fatal("expected error for malformed cache, got nil")
 	}
@@ -99,6 +99,38 @@ func TestSaveProfilesCache_CreateDirError(t *testing.T) {
 
 	if err := config.SaveProfilesCache(&config.ProfilesCache{Profiles: map[string]config.Profile{}}); err == nil {
 		t.Error("expected error with unwritable cache dir, got nil")
+	}
+}
+
+func TestLoadProfilesCache_TenantMismatch(t *testing.T) {
+	setupXDG(t)
+
+	if err := config.SaveProfilesCache(&config.ProfilesCache{
+		Tenant:   "acme",
+		Profiles: map[string]config.Profile{"dev": {Cloud: "aws"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Asking for a different tenant must return ErrCacheMiss so callers do a
+	// fresh sync instead of silently getting acme's profile IDs.
+	if _, err := config.LoadProfilesCache("beta"); !errors.Is(err, config.ErrCacheMiss) {
+		t.Errorf("tenant mismatch: err = %v, want ErrCacheMiss", err)
+	}
+
+	// Empty tenant skips validation (used by surfaces that cannot resolve
+	// the current tenant yet, e.g. `bctl profiles list` during first setup).
+	if _, err := config.LoadProfilesCache(""); err != nil {
+		t.Errorf("empty tenant: err = %v, want nil", err)
+	}
+
+	// Matching tenant loads normally.
+	loaded, err := config.LoadProfilesCache("acme")
+	if err != nil {
+		t.Fatalf("matching tenant: err = %v, want nil", err)
+	}
+	if loaded.Tenant != "acme" {
+		t.Errorf("loaded.Tenant = %q, want acme", loaded.Tenant)
 	}
 }
 

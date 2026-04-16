@@ -82,7 +82,7 @@ func syncCallback(ctx context.Context, tenant, token string) (map[string]config.
 	}
 
 	profiles := aliases.BuildMap(entries)
-	cache := &config.ProfilesCache{Profiles: profiles}
+	cache := &config.ProfilesCache{Tenant: tenant, Profiles: profiles}
 	if err := config.SaveProfilesCache(cache); err != nil {
 		return nil, fmt.Errorf("saving profile cache: %w", err)
 	}
