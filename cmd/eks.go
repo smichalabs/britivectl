@@ -63,10 +63,6 @@ func runEKSConnect(ctx context.Context, alias string) error {
 		return err
 	}
 
-	if len(profile.EKSClusters) == 0 {
-		return fmt.Errorf("profile %q has no EKS clusters configured", alias)
-	}
-
 	token, err := requireToken(ctx, t)
 	if err != nil {
 		return err
@@ -110,8 +106,17 @@ func runEKSConnect(ctx context.Context, alias string) error {
 		return fmt.Errorf("writing AWS credentials: %w", err)
 	}
 
-	// Update kubeconfig for each cluster
-	for _, cluster := range profile.EKSClusters {
+	// Update kubeconfig for each cluster. If none are configured, discover
+	// what is available in the account/region.
+	clusters := profile.EKSClusters
+	if len(clusters) == 0 {
+		discovered, discoverErr := discoverEKSClusters(ctx, region, awsProfile)
+		if discoverErr != nil {
+			return discoverErr
+		}
+		clusters = discovered
+	}
+	for _, cluster := range clusters {
 		spin2 := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 		spin2.Start()
 		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
