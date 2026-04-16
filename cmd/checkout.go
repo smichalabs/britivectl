@@ -32,9 +32,11 @@ var errUnsupportedCloud = errors.New("profile cloud is not supported")
 
 func newCheckoutCmd() *cobra.Command {
 	var (
-		eks       bool
-		force     bool
-		outputFmt string
+		eks        bool
+		eksCluster string
+		eksRegion  string
+		force      bool
+		outputFmt  string
 	)
 
 	cmd := &cobra.Command{
@@ -55,6 +57,12 @@ If credentials for the profile were already checked out and have at
 least 5 minutes of life left, bctl skips the Britive API entirely and
 reports the existing expiry. Pass --force to refresh anyway.
 
+EKS support (--eks):
+  Passing --eks updates kubeconfig after checkout. If no clusters are
+  configured on the profile, bctl auto-discovers them via
+  'aws eks list-clusters'. If your account blocks that API call, pass
+  --cluster explicitly to name the cluster.
+
 Output formats (--output / -o):
   awscreds  Write to ~/.aws/credentials (default for AWS profiles)
   json      Print JSON to stdout
@@ -62,14 +70,15 @@ Output formats (--output / -o):
   process   Print AWS credential_process JSON`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if eksCluster != "" {
+				eks = true
+			}
 			query := ""
 			if len(args) == 1 {
 				query = args[0]
 			}
-			err := runCheckout(cmd.Context(), query, eks, force, outputFmt)
+			err := runCheckout(cmd.Context(), query, eks, eksCluster, eksRegion, force, outputFmt)
 			if errors.Is(err, errUnsupportedCloud) {
-				// Message already printed by printComingSoon; suppress cobra's
-				// duplicate "Error: ..." line but keep the non-zero exit.
 				cmd.SilenceErrors = true
 			}
 			return err
@@ -77,12 +86,14 @@ Output formats (--output / -o):
 	}
 
 	cmd.Flags().BoolVar(&eks, "eks", false, "also update kubeconfig for EKS clusters in this profile")
+	cmd.Flags().StringVar(&eksCluster, "cluster", "", "EKS cluster name (implies --eks, skips auto-discovery)")
+	cmd.Flags().StringVar(&eksRegion, "region", "", "AWS region for EKS operations (overrides profile/config default)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "refresh credentials even if existing ones are still valid")
 	cmd.Flags().StringVarP(&outputFmt, "output", "o", "", "output format: awscreds|json|env|process")
 	return cmd
 }
 
-func runCheckout(ctx context.Context, query string, eks, force bool, outFmt string) error {
+func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksRegion string, force bool, outFmt string) error {
 	// 1. Reconcile state: config, token, profile cache.
 	ready, err := state.EnsureReady(ctx, stateCallbacks())
 	if err != nil {
@@ -97,6 +108,16 @@ func runCheckout(ctx context.Context, query string, eks, force bool, outFmt stri
 			return nil
 		}
 		return err
+	}
+
+	// If the user passed --cluster or --region explicitly, inject them into
+	// the profile so the downstream EKS functions use them instead of
+	// auto-discovering or falling back to config defaults.
+	if eksCluster != "" {
+		match.Profile.EKSClusters = []string{eksCluster}
+	}
+	if eksRegion != "" {
+		match.Profile.Region = eksRegion
 	}
 
 	// 3a. EKS was explicitly requested but the profile is not AWS. EKS is an
@@ -314,16 +335,22 @@ func formatDuration(d time.Duration) string {
 // user has configured locally. Used on the skip-if-fresh path where we did
 // not just check out new credentials and therefore have no live region.
 func connectEKSFromProfile(ctx context.Context, match resolver.Match) error {
-	if len(match.Profile.EKSClusters) == 0 {
-		return nil
-	}
 	awsProfile := match.Profile.AWSProfile
 	if awsProfile == "" {
 		awsProfile = match.Alias
 	}
 	region := match.Profile.Region
 
-	for _, cluster := range match.Profile.EKSClusters {
+	clusters := match.Profile.EKSClusters
+	if len(clusters) == 0 {
+		discovered, err := discoverEKSClusters(ctx, region, awsProfile)
+		if err != nil {
+			return err
+		}
+		clusters = discovered
+	}
+
+	for _, cluster := range clusters {
 		spin := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 		spin.Start()
 		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
@@ -452,12 +479,10 @@ func injectAWS(match resolver.Match, creds *britive.Credentials, outFmt string) 
 }
 
 // connectEKS updates kubeconfig for every EKS cluster listed on the profile.
+// If no clusters are configured, it auto-discovers them via `aws eks
+// list-clusters` so that `--eks` works out of the box without manual config.
 // Errors are reported per-cluster but do not stop processing of the next.
 func connectEKS(ctx context.Context, match resolver.Match, creds *britive.Credentials) error {
-	if len(match.Profile.EKSClusters) == 0 {
-		return nil
-	}
-
 	awsProfile := match.Profile.AWSProfile
 	if awsProfile == "" {
 		awsProfile = match.Alias
@@ -467,7 +492,16 @@ func connectEKS(ctx context.Context, match resolver.Match, creds *britive.Creden
 		region = match.Profile.Region
 	}
 
-	for _, cluster := range match.Profile.EKSClusters {
+	clusters := match.Profile.EKSClusters
+	if len(clusters) == 0 {
+		discovered, err := discoverEKSClusters(ctx, region, awsProfile)
+		if err != nil {
+			return err
+		}
+		clusters = discovered
+	}
+
+	for _, cluster := range clusters {
 		spin := output.NewSpinner(fmt.Sprintf("Updating kubeconfig for %s...", cluster))
 		spin.Start()
 		if err := aws.UpdateKubeconfig(ctx, cluster, region, awsProfile); err != nil {
@@ -477,4 +511,25 @@ func connectEKS(ctx context.Context, match resolver.Match, creds *britive.Creden
 		}
 	}
 	return nil
+}
+
+// discoverEKSClusters calls `aws eks list-clusters` when no clusters are
+// configured on the profile. Returns an error if the discovery itself fails
+// or if no clusters exist in the account/region.
+func discoverEKSClusters(ctx context.Context, region, awsProfile string) ([]string, error) {
+	spin := output.NewSpinner("Discovering EKS clusters...")
+	spin.Start()
+
+	clusters, err := aws.ListClusters(ctx, region, awsProfile)
+	if err != nil {
+		spin.Fail("Failed to discover EKS clusters")
+		return nil, fmt.Errorf("could not auto-discover EKS clusters (try --cluster <name> to specify manually): %w", err)
+	}
+	if len(clusters) == 0 {
+		spin.Fail("No EKS clusters found in this account/region")
+		return nil, fmt.Errorf("no EKS clusters found -- verify the region, or pass --cluster <name>")
+	}
+
+	spin.Success(fmt.Sprintf("Found %d EKS cluster(s): %s", len(clusters), strings.Join(clusters, ", ")))
+	return clusters, nil
 }
