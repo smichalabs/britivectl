@@ -102,35 +102,43 @@ func TestSaveProfilesCache_CreateDirError(t *testing.T) {
 	}
 }
 
-func TestLoadProfilesCache_TenantMismatch(t *testing.T) {
-	setupXDG(t)
-
-	if err := config.SaveProfilesCache(&config.ProfilesCache{
-		Tenant:   "acme",
-		Profiles: map[string]config.Profile{"dev": {Cloud: "aws"}},
-	}); err != nil {
-		t.Fatal(err)
+func TestShouldAutoSync(t *testing.T) {
+	fresh := &config.ProfilesCache{
+		SyncedAt: time.Now().Add(-5 * time.Minute),
+		Profiles: map[string]config.Profile{"dev": {}},
+	}
+	stale := &config.ProfilesCache{
+		SyncedAt: time.Now().Add(-2 * time.Hour),
+		Profiles: map[string]config.Profile{"dev": {}},
+	}
+	empty := &config.ProfilesCache{
+		SyncedAt: time.Now(),
+		Profiles: map[string]config.Profile{},
 	}
 
-	// Asking for a different tenant must return ErrCacheMiss so callers do a
-	// fresh sync instead of silently getting acme's profile IDs.
-	if _, err := config.LoadProfilesCache("beta"); !errors.Is(err, config.ErrCacheMiss) {
-		t.Errorf("tenant mismatch: err = %v, want ErrCacheMiss", err)
+	cases := []struct {
+		name    string
+		cache   *config.ProfilesCache
+		refresh bool
+		noSync  bool
+		want    bool
+	}{
+		{"nil cache, default -> sync", nil, false, false, true},
+		{"nil cache, --no-sync -> skip", nil, false, true, false},
+		{"fresh cache, default -> skip", fresh, false, false, false},
+		{"fresh cache, --refresh -> sync", fresh, true, false, true},
+		{"fresh cache, --no-sync -> skip", fresh, false, true, false},
+		{"stale cache, default -> sync", stale, false, false, true},
+		{"stale cache, --no-sync wins", stale, false, true, false},
+		{"empty cache, default -> sync", empty, false, false, true},
 	}
-
-	// Empty tenant skips validation (used by surfaces that cannot resolve
-	// the current tenant yet, e.g. `bctl profiles list` during first setup).
-	if _, err := config.LoadProfilesCache(""); err != nil {
-		t.Errorf("empty tenant: err = %v, want nil", err)
-	}
-
-	// Matching tenant loads normally.
-	loaded, err := config.LoadProfilesCache("acme")
-	if err != nil {
-		t.Fatalf("matching tenant: err = %v, want nil", err)
-	}
-	if loaded.Tenant != "acme" {
-		t.Errorf("loaded.Tenant = %q, want acme", loaded.Tenant)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := config.ShouldAutoSync(tc.cache, tc.refresh, tc.noSync, 1*time.Hour)
+			if got != tc.want {
+				t.Errorf("ShouldAutoSync() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

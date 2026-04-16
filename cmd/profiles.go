@@ -77,7 +77,7 @@ func runProfilesList(ctx context.Context, verbose, refresh, noSync bool) error {
 		return fmt.Errorf("loading profile cache: %w", err)
 	}
 
-	if shouldSyncForList(cache, refresh, noSync) {
+	if config.ShouldAutoSync(cache, refresh, noSync, listCacheMaxAge) {
 		synced, syncErr := syncProfilesForList(ctx, refresh)
 		switch {
 		case syncErr == nil:
@@ -134,23 +134,6 @@ func runProfilesList(ctx context.Context, verbose, refresh, noSync bool) error {
 	}
 	output.PrintTable(headers, rows)
 	return nil
-}
-
-// shouldSyncForList decides whether 'bctl profiles list' should hit the API
-// before rendering. --no-sync always wins, --refresh always triggers; the
-// default middle behaviour syncs only when the cache is missing or older
-// than listCacheMaxAge so repeated invocations stay instant.
-func shouldSyncForList(cache *config.ProfilesCache, refresh, noSync bool) bool {
-	if noSync {
-		return false
-	}
-	if refresh {
-		return true
-	}
-	if cache == nil || len(cache.Profiles) == 0 {
-		return true
-	}
-	return cache.IsStale(listCacheMaxAge)
 }
 
 // syncProfilesForList resolves tenant + token and fetches a fresh snapshot
