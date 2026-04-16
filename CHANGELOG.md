@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/smichalabs/britivectl/compare/v0.6.2...v0.5.0) (2026-04-16)
+
+
+### Features
+
+* add AWS credentials writer and EKS kubeconfig updater ([b21555c](https://github.com/smichalabs/britivectl/commit/b21555cb68281bf5ed40f04f43de1b82e851ead8))
+* add Britive API client with auth and JIT session management ([0be23e8](https://github.com/smichalabs/britivectl/commit/0be23e885a335c20e798ac239f85f417c1aa11be))
+* add cobra CLI with all 13 commands ([900c10f](https://github.com/smichalabs/britivectl/commit/900c10f760b6e8d4fa8edd70fe5eba8e7a287c5f))
+* add config package with YAML persistence and OS keychain ([ec3789c](https://github.com/smichalabs/britivectl/commit/ec3789c139b2018b9f697621f06e58e3c67b7026))
+* add output package — color, table, spinner, JSON/env/process ([921bd9e](https://github.com/smichalabs/britivectl/commit/921bd9e1cf586549e7682cdc42b1b035864a990e))
+* add Route 53 hosted zone for reliable apex DNS ([#13](https://github.com/smichalabs/britivectl/issues/13)) ([2b3c2dd](https://github.com/smichalabs/britivectl/commit/2b3c2dd4d20a752faead886559f97a5173f65f93))
+* add self-update via GitHub releases with checksum verification ([dfa7c45](https://github.com/smichalabs/britivectl/commit/dfa7c45051affc905cb4c5cf4464ab701f6da333))
+* add version package with ldflags build injection ([059699d](https://github.com/smichalabs/britivectl/commit/059699dadd1cb6c14d0db894be531f389aff9ca1))
+* bctl foundation ([#1](https://github.com/smichalabs/britivectl/issues/1)) ([437bb0b](https://github.com/smichalabs/britivectl/commit/437bb0b412279e0458eeb488f1ec634dbb29fdce))
+* **checkin:** add --all flag to return every active session at once ([#68](https://github.com/smichalabs/britivectl/issues/68)) ([#83](https://github.com/smichalabs/britivectl/issues/83)) ([7f0e478](https://github.com/smichalabs/britivectl/commit/7f0e478ad2ae24e5e82a5717aa8c86760df8bd0d))
+* **eks:** require AWS profile for any EKS kubeconfig flow ([#41](https://github.com/smichalabs/britivectl/issues/41)) ([3b3762c](https://github.com/smichalabs/britivectl/commit/3b3762c2d07dad23721dc575c135533f0ae979ed))
+* move issue tracker to source repo and show all install options ([#50](https://github.com/smichalabs/britivectl/issues/50)) ([4e01b4d](https://github.com/smichalabs/britivectl/commit/4e01b4dff8c77a3d65a8576a68eddc1cca45c8f3))
+* **profiles:** auto-sync list when cache is stale, plus --refresh and --no-sync ([#86](https://github.com/smichalabs/britivectl/issues/86)) ([9c67eab](https://github.com/smichalabs/britivectl/commit/9c67eab13c4fe987f24738520103b1b7aacb463c))
+* skip Britive API on bctl checkout when credentials are still fresh ([#28](https://github.com/smichalabs/britivectl/issues/28)) ([e301e5f](https://github.com/smichalabs/britivectl/commit/e301e5f0e329db965aae43c61171890049afd840))
+* zero-touch checkout orchestrator with fuzzy TUI picker ([#22](https://github.com/smichalabs/britivectl/issues/22)) ([07cee68](https://github.com/smichalabs/britivectl/commit/07cee686bcf66b880638269506d46061120d7f39))
+
+
+### Bug Fixes
+
+* broaden S3 and CloudFront permissions for terraform-cli IAM policy ([#5](https://github.com/smichalabs/britivectl/issues/5)) ([d344497](https://github.com/smichalabs/britivectl/commit/d3444972e413390ae140d2e9ef32f145c43b30e2))
+* checkin alias lookup, reuse existing session, profiles list cleanup ([#56](https://github.com/smichalabs/britivectl/issues/56)) ([67eb03a](https://github.com/smichalabs/britivectl/commit/67eb03ad0f0b4de48c8e30052ad9b5ad41baa86d))
+* **checkout:** return non-zero exit code for unsupported clouds ([#66](https://github.com/smichalabs/britivectl/issues/66)) ([#81](https://github.com/smichalabs/britivectl/issues/81)) ([57355dc](https://github.com/smichalabs/britivectl/commit/57355dc71cd53305c9e92d1848f0ef7f1359f7f1))
+* **checkout:** tolerate transient failures in the polling loop and surface config load errors ([#74](https://github.com/smichalabs/britivectl/issues/74), [#75](https://github.com/smichalabs/britivectl/issues/75), [#76](https://github.com/smichalabs/britivectl/issues/76)) ([#85](https://github.com/smichalabs/britivectl/issues/85)) ([2a4ce56](https://github.com/smichalabs/britivectl/commit/2a4ce569e496db64635deaf31addb6811fa7a450))
+* **checkout:** use checkedOut.Expiration (not creds.Expiration) for cache save ([#54](https://github.com/smichalabs/britivectl/issues/54)) ([cf4a011](https://github.com/smichalabs/britivectl/commit/cf4a01168df86a80d11934a62ab2c8cbea3771d3))
+* **ci:** use minor bumps for feat commits in 0.x ([#24](https://github.com/smichalabs/britivectl/issues/24)) ([b894ace](https://github.com/smichalabs/britivectl/commit/b894ace33c7c84004cf1870bed74d445eb3f1264))
+* **config:** sweep quick-win UX bugs ([#79](https://github.com/smichalabs/britivectl/issues/79)) ([9179809](https://github.com/smichalabs/britivectl/commit/91798098e9feae42b234a14ce9b9a9e2016a686f))
+* **config:** tenant-tag the profile cache and checkout state to prevent cross-tenant mixing ([#62](https://github.com/smichalabs/britivectl/issues/62)) ([#84](https://github.com/smichalabs/britivectl/issues/84)) ([0b747fb](https://github.com/smichalabs/britivectl/commit/0b747fb4a33c7180db617c0736fedd05d3149716))
+* **docs:** add trailing slash to site_url so relative assets resolve correctly ([#47](https://github.com/smichalabs/britivectl/issues/47)) ([03b4dc4](https://github.com/smichalabs/britivectl/commit/03b4dc401e05f085cb535591f97cb1382bf2c28e))
+* **docs:** show both command picker and profile picker in the Use section ([#52](https://github.com/smichalabs/britivectl/issues/52)) ([6661d17](https://github.com/smichalabs/britivectl/commit/6661d17033044f603bc84b3bbb1123a41e6e41ca))
+* friendly non-AWS message, auto-filter TUI, command picker on no args ([#26](https://github.com/smichalabs/britivectl/issues/26)) ([e771a49](https://github.com/smichalabs/britivectl/commit/e771a49eab9244cc713b174571e8da38bb5cc6dc))
+* **infra:** redirect bare directory URLs to trailing-slash for correct CSS resolution ([#49](https://github.com/smichalabs/britivectl/issues/49)) ([497c057](https://github.com/smichalabs/britivectl/commit/497c0570cc7901ae9949318e53acb0244b20e24d))
+* **init:** sanitize tenant input and probe reachability ([#80](https://github.com/smichalabs/britivectl/issues/80)) ([5f62ae4](https://github.com/smichalabs/britivectl/commit/5f62ae4e5a3d60abffb14a8f4ba94c1237abbd25))
+* **output:** reset TTY on exit so cursor is restored after every command ([#59](https://github.com/smichalabs/britivectl/issues/59)) ([7ec312e](https://github.com/smichalabs/britivectl/commit/7ec312e0815d8002a8b8aa52c17b47d44acc58b6))
+* **profiles:** four-tier alias collision strategy ([#82](https://github.com/smichalabs/britivectl/issues/82)) ([c117ef4](https://github.com/smichalabs/britivectl/commit/c117ef4a02b9fbba2d7fce1ce42a6ae0ca00f617))
+* skip access key creation if one exists, add CF function permissions ([378aa99](https://github.com/smichalabs/britivectl/commit/378aa99fafceec77e5732b9c2542ead6f5904a19))
+
+
+### Security
+
+* add checkov, commit-msg hook, remove default root object ([#7](https://github.com/smichalabs/britivectl/issues/7)) ([3cf034c](https://github.com/smichalabs/britivectl/commit/3cf034cc7b8a99f5ff262d17da38e258c4105ab5))
+* harden S3 bucket, add security headers, and CloudWatch alerting ([#10](https://github.com/smichalabs/britivectl/issues/10)) ([df10398](https://github.com/smichalabs/britivectl/commit/df1039801f98089883c2f4a34ffd1252ce659e9a))
+* migrate Terraform CI from static keys to OIDC ([#11](https://github.com/smichalabs/britivectl/issues/11)) ([9a26df7](https://github.com/smichalabs/britivectl/commit/9a26df722f75c3885332f5548b20a9b795141041))
+
+
+### Chores
+
+* release 0.5.0 ([66b73d8](https://github.com/smichalabs/britivectl/commit/66b73d86406d0552e461cbd761f68db1b2ebc74b))
+
+
+### CI
+
+* add workflow_dispatch to release-please and force 0.3.1 ([cbe92d8](https://github.com/smichalabs/britivectl/commit/cbe92d80262146ec9d743f0a38253a1c063d37e5))
+
 ## [0.6.2](https://github.com/smichalabs/britivectl/compare/v0.6.1...v0.6.2) (2026-04-14)
 
 
