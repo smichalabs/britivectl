@@ -52,12 +52,12 @@ func newConfigSetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "set <key> <value>",
 		Short: "Set a configuration value",
-		Long: fmt.Sprintf(`Set a configuration value and persist it to the config file.
+		Long: `Set a configuration value and persist it to the config file.
 
 Valid keys:
   tenant          Britive tenant name (subdomain only, e.g. "acme")
   default_region  Default AWS region (e.g. "us-east-1")
-  auth.method     Authentication method: browser or token`),
+  auth.method     Authentication method: browser or token`,
 		Example: `  bctl config set tenant acme
   bctl config set default_region us-west-2
   bctl config set auth.method browser`,
