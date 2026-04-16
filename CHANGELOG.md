@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0](https://github.com/smichalabs/britivectl/compare/v0.6.2...v0.7.0) (2026-04-16)
+
+
+### Features
+
+* **checkin:** add --all flag to return every active session at once ([#68](https://github.com/smichalabs/britivectl/issues/68)) ([#83](https://github.com/smichalabs/britivectl/issues/83))
+* **profiles:** auto-sync list when cache is stale, plus --refresh and --no-sync flags ([#86](https://github.com/smichalabs/britivectl/issues/86))
+
+
+### Bug Fixes
+
+* **config:** sweep quick-win UX bugs ([#63](https://github.com/smichalabs/britivectl/issues/63), [#65](https://github.com/smichalabs/britivectl/issues/65), [#67](https://github.com/smichalabs/britivectl/issues/67), [#70](https://github.com/smichalabs/britivectl/issues/70), [#71](https://github.com/smichalabs/britivectl/issues/71), [#72](https://github.com/smichalabs/britivectl/issues/72), [#73](https://github.com/smichalabs/britivectl/issues/73)) ([#79](https://github.com/smichalabs/britivectl/issues/79))
+* **config:** tenant-tag the profile cache and checkout state to prevent cross-tenant mixing ([#62](https://github.com/smichalabs/britivectl/issues/62)) ([#84](https://github.com/smichalabs/britivectl/issues/84))
+* **init:** sanitize tenant input and probe reachability ([#61](https://github.com/smichalabs/britivectl/issues/61), [#64](https://github.com/smichalabs/britivectl/issues/64)) ([#80](https://github.com/smichalabs/britivectl/issues/80))
+* **checkout:** return non-zero exit code for unsupported clouds ([#66](https://github.com/smichalabs/britivectl/issues/66)) ([#81](https://github.com/smichalabs/britivectl/issues/81))
+* **checkout:** tolerate transient failures in the polling loop and surface config load errors ([#74](https://github.com/smichalabs/britivectl/issues/74), [#75](https://github.com/smichalabs/britivectl/issues/75), [#76](https://github.com/smichalabs/britivectl/issues/76)) ([#85](https://github.com/smichalabs/britivectl/issues/85))
+* **profiles:** four-tier alias collision strategy, never silently overwrite ([#69](https://github.com/smichalabs/britivectl/issues/69), [#78](https://github.com/smichalabs/britivectl/issues/78)) ([#82](https://github.com/smichalabs/britivectl/issues/82))
+
 ## [0.6.2](https://github.com/smichalabs/britivectl/compare/v0.6.1...v0.6.2) (2026-04-14)
 
 
