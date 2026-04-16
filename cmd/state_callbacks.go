@@ -24,9 +24,9 @@ func stateCallbacks() state.Callbacks {
 // initCallback runs the existing interactive init wizard and returns the
 // resulting config. Called by EnsureReady when the config file is missing or
 // the tenant is unset.
-func initCallback(_ context.Context) (*config.Config, error) {
+func initCallback(ctx context.Context) (*config.Config, error) {
 	output.Info("No configuration found -- running 'bctl init' first.")
-	if err := runInit(); err != nil {
+	if err := runInit(ctx); err != nil {
 		return nil, err
 	}
 	return config.Load()

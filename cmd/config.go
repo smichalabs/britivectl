@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
 	"github.com/spf13/cobra"
@@ -76,6 +77,15 @@ Valid keys:
 				cfg = &config.Config{}
 			}
 
+			// Tenant input like https://acme.britive-app.com/ is sanitized
+			// before persistence so we do not save a double-URL.
+			if strings.EqualFold(key, "tenant") {
+				cleaned := britive.SanitizeTenant(val)
+				if cleaned != val {
+					output.Info("Using tenant %q (stripped URL scheme and britive-app.com suffix)", cleaned)
+				}
+				val = cleaned
+			}
 			if err := applyConfigKey(cfg, key, val); err != nil {
 				return err
 			}
