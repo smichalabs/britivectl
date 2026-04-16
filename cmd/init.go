@@ -20,12 +20,12 @@ func newInitCmd() *cobra.Command {
 		Short: "Initialize bctl configuration",
 		Long:  "Interactive wizard to set up bctl configuration including tenant and authentication method.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit()
+			return runInit(cmd.Context())
 		},
 	}
 }
 
-func runInit() error {
+func runInit(ctx context.Context) error {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Welcome to bctl! Let's set up your configuration.")
@@ -94,7 +94,7 @@ func runInit() error {
 	// Best-effort reachability probe so a typoed tenant is caught here rather
 	// than deep in the login flow. Failure is a warning, not a hard error --
 	// offline setup must still work.
-	probeCtx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	if err := britive.CheckTenantReachable(probeCtx, cfg.Tenant); err != nil {
 		output.Warning("Could not reach https://%s.britive-app.com -- verify the tenant name", cfg.Tenant)
