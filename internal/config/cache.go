@@ -103,3 +103,29 @@ func (c *ProfilesCache) IsStale(maxAge time.Duration) bool {
 	}
 	return time.Since(c.SyncedAt) > maxAge
 }
+
+// ShouldAutoSync decides whether a command that reads the profile cache
+// should first hit the API. The refresh and noSync flags come from user
+// input; maxAge is how long the caller is willing to trust the cache.
+//
+// Precedence:
+//  1. noSync always wins -- offline mode stays offline
+//  2. refresh always triggers -- explicit override
+//  3. missing or empty cache -- always sync
+//  4. stale cache -- sync if older than maxAge
+//
+// Centralised here so the same decision logic can be covered by tests in
+// the config package rather than duplicated across cmd surfaces where
+// coverage is hard to enforce.
+func ShouldAutoSync(cache *ProfilesCache, refresh, noSync bool, maxAge time.Duration) bool {
+	if noSync {
+		return false
+	}
+	if refresh {
+		return true
+	}
+	if cache == nil || len(cache.Profiles) == 0 {
+		return true
+	}
+	return cache.IsStale(maxAge)
+}
