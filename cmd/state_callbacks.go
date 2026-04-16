@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/smichalabs/britivectl/internal/aliases"
 	"github.com/smichalabs/britivectl/internal/britive"
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
@@ -80,7 +81,7 @@ func syncCallback(ctx context.Context, tenant, token string) (map[string]config.
 		return nil, fmt.Errorf("listing access: %w", err)
 	}
 
-	profiles := buildProfileMap(entries)
+	profiles := aliases.BuildMap(entries)
 	cache := &config.ProfilesCache{Profiles: profiles}
 	if err := config.SaveProfilesCache(cache); err != nil {
 		return nil, fmt.Errorf("saving profile cache: %w", err)
@@ -101,64 +102,4 @@ func persistToken(tenant, token, tokenType string) error {
 		_ = config.SetTokenExpiry(tenant, exp)
 	}
 	return nil
-}
-
-// buildProfileMap flattens the Britive API response into alias -> Profile.
-// Uses the same alias-generation rules as the interactive `profiles sync`
-// command so both code paths produce identical results.
-func buildProfileMap(entries []britive.AccessEntry) map[string]config.Profile {
-	profiles := make(map[string]config.Profile, len(entries))
-	for _, e := range entries {
-		alias := pickAlias(profiles, e)
-		profiles[alias] = config.Profile{
-			ProfileID:     e.ProfileID,
-			EnvironmentID: e.EnvironmentID,
-			BritivePath:   e.AppName + "/" + e.EnvironmentName + "/" + e.ProfileName,
-			Cloud:         e.Cloud,
-		}
-	}
-	return profiles
-}
-
-// pickAlias picks the shortest alias that does not collide with an existing
-// entry, walking a four-tier strategy:
-//
-//  1. ProfileName                            -- most concise, preferred when unique
-//  2. ProfileName-EnvironmentName            -- disambiguate same profile across envs
-//  3. AppName-ProfileName-EnvironmentName    -- disambiguate across applications
-//  4. <tier 3>-N                             -- numeric suffix as a last resort
-//
-// Before this change, two apps with the same ProfileName and EnvironmentName
-// (e.g. "admin" in "production") would silently overwrite each other in the
-// map because collision handling only fell back to ProfileName+Environment and
-// never considered AppName. Now every profile keeps its own slot.
-func pickAlias(existing map[string]config.Profile, e britive.AccessEntry) string {
-	candidates := []string{
-		e.ProfileName,
-		e.ProfileName + "-" + e.EnvironmentName,
-		e.AppName + "-" + e.ProfileName + "-" + e.EnvironmentName,
-	}
-	for _, raw := range candidates {
-		alias := sanitizeAlias(raw)
-		if alias == "" {
-			continue
-		}
-		if _, clash := existing[alias]; !clash {
-			return alias
-		}
-	}
-
-	// Tier 4: numeric suffix. Should be unreachable in practice since AppName
-	// + ProfileName + EnvironmentName is unique per Britive access tuple, but
-	// defend against API oddities so we never silently overwrite.
-	base := sanitizeAlias(e.AppName + "-" + e.ProfileName + "-" + e.EnvironmentName)
-	if base == "" {
-		base = "profile"
-	}
-	for i := 2; ; i++ {
-		alias := fmt.Sprintf("%s-%d", base, i)
-		if _, clash := existing[alias]; !clash {
-			return alias
-		}
-	}
 }
