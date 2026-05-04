@@ -61,6 +61,31 @@ resource "aws_s3_bucket_public_access_block" "docs" {
   restrict_public_buckets = true
 }
 
+# Apex redirect: visitors hitting https://smichalabs.dev/ (no path) get a
+# meta-refresh redirect to the docs path. Without this object the bucket
+# returns 403 AccessDenied because there is no key at the root. Replace the
+# content with a real homepage when one exists.
+resource "aws_s3_object" "apex_index" {
+  bucket        = aws_s3_bucket.docs.id
+  key           = "index.html"
+  content_type  = "text/html; charset=utf-8"
+  cache_control = "max-age=300"
+  content       = <<-EOT
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0; url=/utils/bctl/">
+    <link rel="canonical" href="https://smichalabs.dev/utils/bctl/">
+    <title>smichalabs</title>
+    </head>
+    <body>
+    <p>Redirecting to <a href="/utils/bctl/">/utils/bctl/</a>...</p>
+    </body>
+    </html>
+  EOT
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "docs" {
   bucket = aws_s3_bucket.docs.id
 
@@ -199,9 +224,9 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 # ── CloudFront distribution ────────────────────────────────────────────────────
 
 resource "aws_cloudfront_distribution" "docs" {
-  enabled             = true
-  aliases             = [var.domain]
-  price_class         = "PriceClass_100" # US + Europe only — cheapest
+  enabled     = true
+  aliases     = [var.domain]
+  price_class = "PriceClass_100" # US + Europe only — cheapest
 
   origin {
     domain_name              = aws_s3_bucket.docs.bucket_regional_domain_name
