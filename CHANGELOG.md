@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/smichalabs/britivectl/compare/v0.7.0...v0.8.0) (2026-05-07)
+
+
+### Features
+
+* **eks:** auto-discover clusters and add --cluster/--region flags ([#90](https://github.com/smichalabs/britivectl/issues/90)) ([bd945f6](https://github.com/smichalabs/britivectl/commit/bd945f63d2af8214f7b597e5e29458abcf7584d0))
+
+
+### Bug Fixes
+
+* **auth:** support headless Linux and WSL by adding a file backend ([#92](https://github.com/smichalabs/britivectl/issues/92)) ([5cf62e7](https://github.com/smichalabs/britivectl/commit/5cf62e788180e2212f113b24bd787a3647e38659))
+* **infra:** redirect apex domain to docs path ([#91](https://github.com/smichalabs/britivectl/issues/91)) ([2bf883e](https://github.com/smichalabs/britivectl/commit/2bf883e4835653227cdc677f147b50aef1f0f69b))
+
 ## [0.7.0](https://github.com/smichalabs/britivectl/compare/v0.6.2...v0.7.0) (2026-04-16)
 
 
