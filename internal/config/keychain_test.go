@@ -2,17 +2,26 @@ package config_test
 
 import (
 	"fmt"
-	"runtime"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/smichalabs/britivectl/internal/config"
 )
 
-func skipIfNotDarwin(t *testing.T) {
+// keyringTestSetup points the OS keychain backend at a temporary directory
+// so test runs are hermetic. The 99designs/keyring File backend honors XDG
+// paths via os.UserConfigDir(), which we redirect here by overriding HOME.
+func keyringTestSetup(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS != "darwin" {
-		t.Skip("keychain tests require macOS")
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, ".config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, ".cache"))
+	t.Setenv("BCTL_KEYRING_BACKEND", "file")
+	if err := os.MkdirAll(filepath.Join(tmp, ".config", "bctl"), 0o700); err != nil {
+		t.Fatalf("setup: %v", err)
 	}
 }
 
@@ -21,7 +30,7 @@ func uniqueTenant() string {
 }
 
 func TestSetGetDeleteToken(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteToken(tenant)
@@ -52,9 +61,8 @@ func TestSetGetDeleteToken(t *testing.T) {
 }
 
 func TestGetToken_NotSet(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
-	// No cleanup needed — nothing was set.
 
 	got, err := config.GetToken(tenant)
 	if err == nil {
@@ -63,7 +71,7 @@ func TestGetToken_NotSet(t *testing.T) {
 }
 
 func TestSetGetDeleteTokenType(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenType(tenant)
@@ -91,9 +99,8 @@ func TestSetGetDeleteTokenType(t *testing.T) {
 }
 
 func TestGetTokenType_Default(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
-	// Nothing set — expect the default.
 
 	got := config.GetTokenType(tenant)
 	if got != "TOKEN" {
@@ -102,7 +109,7 @@ func TestGetTokenType_Default(t *testing.T) {
 }
 
 func TestSetGetDeleteTokenExpiry(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenExpiry(tenant)
@@ -130,9 +137,8 @@ func TestSetGetDeleteTokenExpiry(t *testing.T) {
 }
 
 func TestGetTokenExpiry_NotSet(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
-	// Nothing set — expect zero.
 
 	got := config.GetTokenExpiry(tenant)
 	if got != 0 {
@@ -141,13 +147,12 @@ func TestGetTokenExpiry_NotSet(t *testing.T) {
 }
 
 func TestTokenExpiry_ZeroValue(t *testing.T) {
-	skipIfNotDarwin(t)
+	keyringTestSetup(t)
 	tenant := uniqueTenant()
 	t.Cleanup(func() {
 		_ = config.DeleteTokenExpiry(tenant)
 	})
 
-	// Setting expiry to 1 (smallest non-zero value) and verifying round-trip.
 	const expiry int64 = 1
 
 	if err := config.SetTokenExpiry(tenant, expiry); err != nil {
