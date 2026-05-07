@@ -43,6 +43,7 @@ Environment variables override values in the config file.
 | `BCTL_OUTPUT` | Default output format (`awscreds`, `json`, `env`, `process`) |
 | `BCTL_REGION` | Default AWS region |
 | `BCTL_NO_COLOR` | Disable colour output |
+| `BCTL_KEYRING_BACKEND` | Force the credentials backend. Set to `file` to skip the OS keychain and store the token in an encrypted file under the bctl config directory. Useful on WSL and other headless Linux environments without a keychain daemon. |
 
 ## Auth methods
 
@@ -53,7 +54,7 @@ bctl init        # set method: browser
 bctl login       # opens browser, stores token in keychain
 ```
 
-Tokens are stored in the OS keychain (macOS Keychain, Linux libsecret) and refreshed automatically when they expire.
+Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, libsecret or KWallet on Linux) and refreshed automatically when they expire. On WSL and other headless Linux environments without a running keychain daemon, bctl falls back to an encrypted file under the bctl config directory; the same fallback can be forced anywhere by setting `BCTL_KEYRING_BACKEND=file`.
 
 ### API token
 

@@ -125,7 +125,7 @@ This is the source of truth if you're trying to remember whether you already hav
 
 | Thing | Where | What removes it |
 |---|---|---|
-| Session JWT + expiry | OS keychain (macOS Keychain, libsecret on Linux) | `bctl logout` |
+| Session JWT + expiry | OS keychain (macOS Keychain, Windows Credential Manager, libsecret/KWallet on Linux). On WSL or other headless Linux without a keychain daemon, falls back to an encrypted file under the bctl config directory. Force the file backend with `BCTL_KEYRING_BACKEND=file`. | `bctl logout` |
 | Per-profile checkout state | `~/.cache/bctl/checkouts/<alias>.json` | `bctl checkin <alias>` |
 | AWS credentials (the actual ones) | `~/.aws/credentials` | overwritten on next checkout, or `bctl checkin` |
 | Profile catalog cache | `~/.cache/bctl/profiles.json` | `bctl profiles sync` (24h auto-refresh) |
