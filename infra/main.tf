@@ -257,11 +257,25 @@ resource "aws_cloudfront_distribution" "docs" {
     max_ttl     = 3600
   }
 
-  # Return index.html for 404s (SPA-style routing for MkDocs)
+  # Return index.html for 404s (SPA-style routing for MkDocs).
+  # error_caching_min_ttl = 0 prevents an edge POP from caching a transient
+  # error response (e.g. during a deploy window) for the default ~10s.
   custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/404.html"
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 0
+  }
+
+  # S3 returns 403 AccessDenied (not 404) for missing keys when public ACLs
+  # are blocked, which they are. Without this mapping the user sees the raw
+  # S3 AccessDenied XML page during deploy races or for any path that does
+  # not resolve to an object.
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/utils/bctl/index.html"
+    error_caching_min_ttl = 0
   }
 
   restrictions {
