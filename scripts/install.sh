@@ -2,7 +2,12 @@
 # bctl installer — auto-detects OS/distro and installs the right package
 set -euo pipefail
 
-REPO="smichalabs/britivectl"
+# Binaries are published to the dedicated releases repo. The source repo
+# does not carry release-attached binary assets for every tag, and its
+# /releases/latest endpoint can lag (e.g. when source-side releases are
+# left in draft state). Querying the releases repo directly guarantees
+# the install script gets the actual latest signed binary.
+REPO="smichalabs/britivectl-releases"
 BINARY="bctl"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
