@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/smichalabs/britivectl/internal/config"
 	"github.com/smichalabs/britivectl/internal/output"
@@ -58,6 +59,7 @@ func runStatus(ctx context.Context) error {
 		aliasLookup[p.ProfileID] = alias
 	}
 
+	now := time.Now()
 	rows := make([][]string, 0, len(sessions))
 	for _, s := range sessions {
 		alias := aliasLookup[s.PapID]
@@ -70,8 +72,24 @@ func runStatus(ctx context.Context) error {
 			alias,
 			s.Status,
 			expiry,
+			remainingColumn(s.Expiration, now),
 		})
 	}
-	output.PrintTable([]string{"PROFILE", "STATUS", "EXPIRES"}, rows)
+	output.PrintTable([]string{"PROFILE", "STATUS", "EXPIRES", "REMAINING"}, rows)
 	return nil
+}
+
+// remainingColumn renders the time-until-expiry value for a session row.
+// Returns "?" when the API expiration string can't be parsed and "expired"
+// when the deadline has already passed.
+func remainingColumn(expiration string, now time.Time) string {
+	t, err := time.Parse(time.RFC3339, expiration)
+	if err != nil {
+		return "?"
+	}
+	d := t.Sub(now)
+	if d <= 0 {
+		return "expired"
+	}
+	return formatDuration(d)
 }
