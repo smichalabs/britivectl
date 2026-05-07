@@ -257,24 +257,36 @@ resource "aws_cloudfront_distribution" "docs" {
     max_ttl     = 3600
   }
 
-  # Return index.html for 404s (SPA-style routing for MkDocs).
-  # error_caching_min_ttl = 0 prevents an edge POP from caching a transient
+  # Map upstream errors to the styled 404 page with a real 404 status.
+  #
+  # Why status 404 (not 200):
+  # response_code applies to every CloudFront response that hits this
+  # mapping, including asset requests (CSS/JS/images). If we return 200,
+  # a missing CSS file gets HTML content with a 200 OK status, and the
+  # browser tries to parse HTML as CSS -- silently failing and rendering
+  # the page unstyled. Returning 404 lets the browser cleanly skip a
+  # failed asset and shows search engines the correct signal for missing
+  # pages.
+  #
+  # Why both 403 and 404 are mapped:
+  # S3 with blocked public ACLs returns 403 AccessDenied (not 404) for
+  # any missing key. Without the 403 mapping the user sees the raw S3
+  # AccessDenied XML page. The 404 mapping is defensive in case anything
+  # else upstream ever surfaces a literal 404.
+  #
+  # error_caching_min_ttl = 0 stops an edge POP from caching a transient
   # error response (e.g. during a deploy window) for the default ~10s.
   custom_error_response {
     error_code            = 404
-    response_code         = 200
+    response_code         = 404
     response_page_path    = "/404.html"
     error_caching_min_ttl = 0
   }
 
-  # S3 returns 403 AccessDenied (not 404) for missing keys when public ACLs
-  # are blocked, which they are. Without this mapping the user sees the raw
-  # S3 AccessDenied XML page during deploy races or for any path that does
-  # not resolve to an object.
   custom_error_response {
     error_code            = 403
-    response_code         = 200
-    response_page_path    = "/utils/bctl/index.html"
+    response_code         = 404
+    response_page_path    = "/404.html"
     error_caching_min_ttl = 0
   }
 
