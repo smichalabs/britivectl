@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0](https://github.com/smichalabs/britivectl/compare/v0.8.0...v0.9.0) (2026-05-07)
+
+
+### Features
+
+* **status:** add REMAINING column with time until expiry ([#93](https://github.com/smichalabs/britivectl/issues/93)) ([0b96c35](https://github.com/smichalabs/britivectl/commit/0b96c35639d388bb5b8559ea69c3676596f543a9))
+
 ## [0.8.0](https://github.com/smichalabs/britivectl/compare/v0.7.0...v0.8.0) (2026-05-07)
 
 
