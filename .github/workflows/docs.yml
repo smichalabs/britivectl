@@ -38,11 +38,19 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DOCS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Deploy to S3
-        run: aws s3 sync site/ s3://${{ secrets.DOCS_BUCKET }}/utils/bctl --delete --cache-control "max-age=300"
+      # Upload-then-prune pattern. Running `aws s3 sync --delete` in a single
+      # pass removes stale keys while new ones are still uploading, which
+      # creates a window where CloudFront edges can fetch a missing key, get
+      # 403 from S3, and cache that error per-POP. Splitting it into upload,
+      # invalidate, then prune eliminates the race for the live request path.
+      - name: Upload new objects
+        run: aws s3 sync site/ s3://${{ secrets.DOCS_BUCKET }}/utils/bctl --cache-control "max-age=300"
 
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.DOCS_CF_DISTRIBUTION_ID }} \
             --paths "/*"
+
+      - name: Prune deleted objects
+        run: aws s3 sync site/ s3://${{ secrets.DOCS_BUCKET }}/utils/bctl --delete --cache-control "max-age=300"

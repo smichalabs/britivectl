@@ -2,6 +2,8 @@ module github.com/smichalabs/britivectl
 
 go 1.25.9
 
+toolchain go1.26.3
+
 require (
 	github.com/99designs/keyring v1.2.2
 	github.com/briandowns/spinner v1.23.2
