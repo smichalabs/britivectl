@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -53,9 +54,18 @@ func runStatus(ctx context.Context) error {
 		return nil
 	}
 
-	// Build a reverse lookup: profileId → alias from local config
-	aliasLookup := make(map[string]string) // profileId → alias
-	for alias, p := range cfg.Profiles {
+	// Build a reverse lookup: profileId → alias. Prefer the on-disk profile
+	// cache (what `bctl profiles list` and `checkout` actually use); fall back
+	// to cfg.Profiles only when the cache is missing or empty so behaviour is
+	// stable on first-run setups before any sync has happened.
+	profiles := cfg.Profiles
+	if cache, cerr := config.LoadProfilesCache(t); cerr == nil && cache != nil && len(cache.Profiles) > 0 {
+		profiles = cache.Profiles
+	} else if cerr != nil && !errors.Is(cerr, config.ErrCacheMiss) {
+		return fmt.Errorf("loading profile cache: %w", cerr)
+	}
+	aliasLookup := make(map[string]string, len(profiles)) // profileId → alias
+	for alias, p := range profiles {
 		aliasLookup[p.ProfileID] = alias
 	}
 
