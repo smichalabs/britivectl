@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2](https://github.com/smichalabs/britivectl/compare/v0.9.1...v0.9.2) (2026-05-08)
+
+
+### Bug Fixes
+
+* **infra:** map 403 to index and split docs deploy to remove race ([#97](https://github.com/smichalabs/britivectl/issues/97)) ([6ce3885](https://github.com/smichalabs/britivectl/commit/6ce388552d05bb4eafebf9d03fe0179b149bc498))
+* **infra:** return 404 status for cloudfront 403/404 instead of 200 ([#100](https://github.com/smichalabs/britivectl/issues/100)) ([e4a9bc9](https://github.com/smichalabs/britivectl/commit/e4a9bc9aa12fa536a4937cc3fd5780c00b1dfed2))
+* **install:** query releases repo so installer always gets latest tag ([#98](https://github.com/smichalabs/britivectl/issues/98)) ([ffdbfde](https://github.com/smichalabs/britivectl/commit/ffdbfde7e81452e2461a648be2fcc6e7752d67aa))
+* **output:** skip terminal reset when stdout is not a terminal ([#102](https://github.com/smichalabs/britivectl/issues/102)) ([7f29a93](https://github.com/smichalabs/britivectl/commit/7f29a9393cd027c2de6670af5471e537f59bae62))
+
 ## [0.9.1](https://github.com/smichalabs/britivectl/compare/v0.9.0...v0.9.1) (2026-05-07)
 
 
