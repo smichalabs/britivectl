@@ -39,16 +39,6 @@ curl -fsSL https://raw.githubusercontent.com/smichalabs/britivectl/main/scripts/
 !!! note
     `bctl login` opens the browser via `wslview` (from `wslu`). Without it, you'll need to copy the URL manually.
 
-## Build from source
-
-Requires Go 1.25+:
-
-```bash
-git clone https://github.com/smichalabs/britivectl.git
-cd britivectl
-make install          # builds and copies to /opt/homebrew/bin
-```
-
 ## Shell completions
 
 === "zsh"
