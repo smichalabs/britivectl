@@ -51,6 +51,8 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 // run cleanup defers -- specifically output.ResetTTY() -- before the process
 // terminates. os.Exit skips defers; returning lets them fire.
 func Execute(ctx context.Context) int {
+	// Top-level picker for `bctl` with no args. Picks a top-level command
+	// like "profiles", "checkout", etc. and appends it to os.Args.
 	if shouldShowCommandPicker() {
 		chosen, err := resolver.PickCommand(ctx, commandChoices())
 		if err != nil {
@@ -61,7 +63,12 @@ func Execute(ctx context.Context) int {
 			return 1
 		}
 		os.Args = append(os.Args, chosen)
-	} else if parent, ok := resolver.FindParentNeedingPicker(rootCmd, os.Args[1:]); ok {
+	}
+	// Parent-command picker. Runs when os.Args lands on a cobra parent that
+	// has subcommands but no Run of its own (e.g. `bctl profiles`). This is
+	// a separate `if` -- not `else if` -- so it also fires when the user
+	// reached a parent via the top-level picker above.
+	if parent, ok := resolver.FindParentNeedingPicker(rootCmd, os.Args[1:]); ok {
 		chosen, err := resolver.PickCommand(ctx, resolver.SubcommandChoices(parent))
 		if err != nil {
 			if errors.Is(err, resolver.ErrCanceled) {
