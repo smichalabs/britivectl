@@ -42,7 +42,10 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 // When invoked with no arguments, Execute opens an fzf-style command picker
 // so the user can browse or fuzzy-search the available subcommands. The
 // default selection is 'checkout' so hitting enter immediately runs the
-// zero-touch flow.
+// zero-touch flow. The same picker fires when the user lands on a parent
+// command that itself has no Run defined (for example `bctl profiles`,
+// `bctl eks`, `bctl issue`, `bctl config`) so every level of the tree
+// behaves consistently instead of dumping a help page on the user.
 //
 // Returns an exit code instead of calling os.Exit so the caller (main) can
 // run cleanup defers -- specifically output.ResetTTY() -- before the process
@@ -50,6 +53,16 @@ Documentation: https://smichalabs.dev/utils/bctl/`,
 func Execute(ctx context.Context) int {
 	if shouldShowCommandPicker() {
 		chosen, err := resolver.PickCommand(ctx, commandChoices())
+		if err != nil {
+			if errors.Is(err, resolver.ErrCanceled) {
+				return 0
+			}
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		os.Args = append(os.Args, chosen)
+	} else if parent, ok := resolver.FindParentNeedingPicker(rootCmd, os.Args[1:]); ok {
+		chosen, err := resolver.PickCommand(ctx, resolver.SubcommandChoices(parent))
 		if err != nil {
 			if errors.Is(err, resolver.ErrCanceled) {
 				return 0
@@ -66,11 +79,12 @@ func Execute(ctx context.Context) int {
 }
 
 // shouldShowCommandPicker reports whether the user invoked 'bctl' with no
-// arguments at all, in which case we launch the interactive command picker.
+// arguments at all, in which case we launch the top-level interactive picker.
 // Any flag or subcommand disables the picker and hands off to cobra.
 func shouldShowCommandPicker() bool {
 	return len(os.Args) == 1
 }
+
 
 // commandChoices builds the list of top-level subcommands shown in the
 // interactive picker. 'checkout' is placed first so pressing enter without
