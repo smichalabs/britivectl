@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0](https://github.com/smichalabs/britivectl/compare/v0.9.2...v0.10.0) (2026-05-09)
+
+
+### Features
+
+* **cli:** pop the picker on parent commands without a Run ([#108](https://github.com/smichalabs/britivectl/issues/108)) ([236ecf1](https://github.com/smichalabs/britivectl/commit/236ecf190181dad87b2ac0463594d33805927710))
+
+
+### Bug Fixes
+
+* **infra:** point cloudfront error page at the path mkdocs deploys to ([#103](https://github.com/smichalabs/britivectl/issues/103)) ([bef1e14](https://github.com/smichalabs/britivectl/commit/bef1e1485fc2a6a71dff5241e9e191f299ea936a))
+
 ## [0.9.2](https://github.com/smichalabs/britivectl/compare/v0.9.1...v0.9.2) (2026-05-08)
 
 
