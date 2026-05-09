@@ -51,6 +51,6 @@ Now `aws --profile aws-admin-prod ...` invokes bctl transparently whenever crede
 
 ## Next
 
-- [Sessions & caching](sessions.md) explains how bctl auto-refreshes your Britive session and skips redundant API calls
+- [Sessions & caching](sessions.md) explains how bctl re-triggers SSO automatically when your Britive session expires and skips redundant Britive API calls when credentials are still fresh
 - [Commands](commands/checkout.md) is the full reference for every subcommand
 - [Configuration](configuration.md) covers the config file and environment variables

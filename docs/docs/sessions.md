@@ -6,7 +6,7 @@ You don't have to do anything to opt in -- both are on by default. This page exi
 
 ---
 
-## 1. Britive session token (auto-refresh)
+## 1. Britive session token (auto re-auth)
 
 When you run `bctl login` (or the very first `bctl` on a new machine), bctl opens your browser, you authenticate to Britive via SSO, and Britive hands back a JWT. bctl stores three things in your OS keychain:
 
@@ -21,10 +21,12 @@ Every command that talks to Britive (`checkout`, `checkin`, `status`, `profiles 
 3. If the token is **still valid**, returns it immediately. The command continues.
 4. If the token is **expired**, prints `Session expired -- re-authenticating...`, re-opens your browser for SSO, stores the fresh JWT and new expiry, and continues with the new token.
 
-The result: **you do not run `bctl login` manually after the first time**. You sign in once, you keep using bctl all day, and when the JWT eventually expires the next command silently re-prompts your browser. There is no "your session has expired, please run bctl login" wall.
+The result: **you do not run `bctl login` manually after the first time**. You sign in once, you keep using bctl all day, and when the JWT eventually expires the next command opens your browser for SSO automatically and continues. There is no "your session has expired, please run bctl login" wall.
 
-!!! info "API tokens don't auto-refresh"
-    If you authenticated with `bctl login --token <token>` (the static API token form, typically used in CI), bctl does **not** try to refresh it. API tokens have no JWT `exp` claim, so bctl trusts them until Britive returns an auth error. Rotate them on your own schedule.
+The browser SSO step itself is the same flow as the first sign-in: if your IdP session is still alive, it is usually a single click; if not, you go through the full SSO. bctl does not silently mint a new token in the background -- Britive does not issue refresh tokens, so a new browser SSO is required. The convenience is that you do not have to remember it as a separate step.
+
+!!! info "API tokens don't auto re-auth"
+    If you authenticated with `bctl login --token <token>` (the static API token form, typically used in CI), bctl does **not** try to renew it. API tokens have no JWT `exp` claim, so bctl trusts them until Britive returns an auth error. Rotate them on your own schedule.
 
 ### What you'll see
 

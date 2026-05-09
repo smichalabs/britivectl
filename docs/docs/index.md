@@ -25,7 +25,7 @@ The first time you run bctl on a new machine, it asks for your Britive tenant an
 
 bctl is a single binary that fuzzy-searches your entitled profiles and writes credentials to your local cloud config (e.g. `~/.aws/credentials`) so you can immediately run `aws`, `kubectl`, `terraform`, or anything else that reads them.
 
-It also auto-refreshes your Britive session in the background and caches credentials locally so repeat checkouts of the same profile are instant. See [Sessions & caching](sessions.md) for details.
+When your Britive session expires, the next bctl command opens your browser for SSO automatically -- you do not run `bctl login` separately. Cloud credentials themselves are also cached locally, so repeat checkouts of the same profile are instant and skip the Britive API entirely. See [Sessions & caching](sessions.md) for details.
 
 ## Use
 

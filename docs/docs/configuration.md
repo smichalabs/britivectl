@@ -54,7 +54,7 @@ bctl init        # set method: browser
 bctl login       # opens browser, stores token in keychain
 ```
 
-Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, libsecret or KWallet on Linux) and refreshed automatically when they expire. On WSL and other headless Linux environments without a running keychain daemon, bctl falls back to an encrypted file under the bctl config directory; the same fallback can be forced anywhere by setting `BCTL_KEYRING_BACKEND=file`.
+Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, libsecret or KWallet on Linux). When the session JWT expires, the next bctl command automatically opens your browser for SSO, stores the new token, and continues with the original command -- no separate `bctl login` needed. On WSL and other headless Linux environments without a running keychain daemon, bctl falls back to an encrypted file under the bctl config directory; the same fallback can be forced anywhere by setting `BCTL_KEYRING_BACKEND=file`.
 
 ### API token
 

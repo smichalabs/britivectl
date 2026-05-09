@@ -1,21 +1,101 @@
 # Comparison
 
-How bctl compares to the two existing ways to get JIT credentials from Britive on a developer machine.
+Three ways to get a JIT AWS credential from Britive. Same end result, very different daily workflows.
 
-|  | Britive web UI | pybritive | **bctl** |
+The big difference: **bctl handles the boilerplate that the other two leave to you.** With the web UI you copy three values and paste them into `~/.aws/credentials` by hand, and with pybritive you remember the right `--mode` flag every time. After either, you still have to run `aws eks update-kubeconfig` separately if you are going to touch a cluster. bctl writes the AWS credentials automatically and updates kubeconfig in the same command.
+
+## At a glance
+
+|  | web UI | pybritive | bctl |
 |---|---|---|---|
-| **Get credentials** | Log in -> click apps -> click environment -> click profile -> click checkout -> pick a duration -> copy three values from a popup -> paste into `~/.aws/credentials` | `pybritive checkout "AWS/Prod/Admin" -m integrate` | `bctl` (then pick) or `bctl checkout admin-prod` |
-| **First-time setup** | None -- just open the browser | `pip install pybritive[aws]` then `pybritive configure tenant -t <name>` then `pybritive login` | `brew install bctl`. The first run does setup interactively. |
-| **Subsequent logins** | Sign in every time, click through every time | `pybritive login` again when token expires | Auto-refreshes the session in the background. You sign in once a day at most. |
-| **Repeat checkouts of the same profile** | Full clickfest again | Full API call again | Instant. Skips the Britive API if credentials still have life. |
-| **Profile name memorization** | Visual click path | Type the exact full Britive path | Fuzzy search the alias, or pass any partial name |
-| **Footprint on your machine** | Browser tab + manual paste | ~100 MB Python stack | Single ~4 MB binary, no runtime |
-| **EKS kubeconfig setup** | Manual `aws eks update-kubeconfig` after every checkout | Manual after every checkout | `--eks` flag does it in the same command |
-| **Shell scriptability** | None | Yes | Yes (`-o env`, `-o process`, `-o json`) |
-| **AWS credential_process** | Not supported | Manual config | First-class -- `bctl checkout <name> -o process` |
+| Sign in | SSO every checkout | run `pybritive login` separately when the token expires | SSO opens automatically as part of `bctl checkout` when the token expires |
+| Find a profile | menu drill-down | type the exact full Britive path | fuzzy match on alias |
+| Write to `~/.aws/credentials` | manual copy and paste | requires `-m integrate` flag | automatic, every time |
+| Update kubeconfig for EKS | run `aws eks update-kubeconfig` after | run `aws eks update-kubeconfig` after | `--eks` in the same command |
+| Repeat checkout (still fresh) | full clickfest again | full API call again | instant, cached |
+| Time remaining | not shown | not shown | `bctl status` |
+| Release | click Checkin in UI | `pybritive checkin "..."` | `bctl checkin admin-prod` |
+| Footprint | browser tab | ~100 MB Python stack | single ~4 MB binary |
 
-## When each one makes sense
+## Get a credential
 
-- **Britive web UI** -- one-off interactive checkout from a machine where you can't install anything.
-- **pybritive** -- you already have a Python environment and want the official Britive-maintained tool.
-- **bctl** -- daily developer workflow on your own laptop. The fuzzy picker, auto-refresh, and skip-if-fresh cache exist specifically for the "I check out 5+ profiles a day" use case.
+**Britive web UI**
+
+1. Log into the Britive web UI through SSO.
+2. Drill into the menu: app -> environment -> profile.
+3. Click **Checkout** on the profile and pick a duration.
+4. Copy the access key, secret, and session token from the popup.
+5. Paste them into `~/.aws/credentials` under the right profile name:
+
+   ```ini
+   [admin-prod]
+   aws_access_key_id = ASIA...
+   aws_secret_access_key = ...
+   aws_session_token = ...
+   ```
+
+6. Use the AWS CLI:
+
+   ```bash
+   aws --profile admin-prod sts get-caller-identity
+   ```
+
+7. If you need EKS too, run `aws eks update-kubeconfig` separately.
+8. When the credentials expire (usually 1 hour), repeat all of the above.
+
+**pybritive**
+
+One-time setup:
+
+```bash
+pip install pybritive[aws]
+pybritive configure tenant -t <tenant>
+pybritive login
+```
+
+Each checkout (the `-m integrate` flag is what writes the AWS credentials, otherwise it just prints them):
+
+```bash
+pybritive checkout "AWS/Prod/Admin" -m integrate
+aws --profile AWS-Prod-Admin sts get-caller-identity
+aws eks update-kubeconfig --name <cluster> --profile AWS-Prod-Admin
+```
+
+You type the full Britive path every time. When the token expires you run `pybritive login` again as a separate step. Repeat checkouts re-hit the Britive API even if the credentials are still fresh.
+
+**bctl**
+
+One-time setup is just installing the binary:
+
+```bash
+brew install smichalabs/tap/bctl
+```
+
+First run walks you through tenant, browser SSO, and profile picker:
+
+```bash
+bctl checkout
+```
+
+Daily use, with credentials and kubeconfig handled in one command:
+
+```bash
+bctl checkout admin-prod --eks
+aws --profile admin-prod sts get-caller-identity
+kubectl get pods
+```
+
+Other commands you will use:
+
+```bash
+bctl status                    # show what is checked out and time remaining
+bctl checkin admin-prod        # release the credentials when done
+```
+
+When the Britive session JWT expires, the next `bctl checkout` opens your browser for SSO automatically and finishes the checkout in the same command -- you do not have to remember to run a separate login step. If your IdP session is still alive, the SSO step is one click; if not, it is the full SSO. Either way, no second command. Cloud credentials themselves are cached locally, so re-checking out a profile that still has time left is instant and skips the Britive API entirely.
+
+## When each makes sense
+
+- **Web UI** for the rare one-off checkout from a machine where you cannot install anything.
+- **pybritive** if you already have a Python environment set up and prefer the Britive-maintained tool.
+- **bctl** for daily developer work, especially if you check out many profiles or hop between EKS clusters.
