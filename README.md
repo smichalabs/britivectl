@@ -28,7 +28,7 @@ The first time you run bctl on a new machine it asks for your Britive tenant and
 
 ## What it does
 
-bctl wraps the Britive REST API to make temporary cloud credential checkout frictionless. Single binary, interactive profile picker, automatic session refresh, and credential caching so repeat checkouts are instant.
+bctl wraps the Britive REST API to make temporary cloud credential checkout frictionless. Single binary, interactive profile picker, automatic browser re-auth when your Britive session expires, and credential caching so repeat checkouts are instant.
 
 ## Install (all platforms)
 
@@ -83,7 +83,7 @@ bctl checkout admin-prod        # substring match works too
 ## Features
 
 - **Interactive pickers** -- command picker and fuzzy-searchable profile picker via bubbletea TUI
-- **Automatic session refresh** -- bctl re-authenticates via browser SSO when the JWT expires, no manual `bctl login` needed
+- **Automatic browser re-auth** -- when the Britive session JWT expires, the next bctl command opens your browser for SSO automatically. You do not run `bctl login` separately. The browser flow itself is the same as a normal sign-in (one click if your IdP session is still alive, full SSO if not).
 - **Credential caching** -- repeat checkouts of the same profile skip the Britive API entirely if the credentials still have life. Pass `--force` to override.
 - **EKS in one step** -- `bctl checkout <profile> --eks` checks out credentials and updates kubeconfig for every cluster on the profile
 - **Output formats** -- `awscreds` (default), `env`, `process` (AWS credential_process), `json`
