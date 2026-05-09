@@ -19,7 +19,12 @@ import (
 
 const (
 	githubOwner = "smichalabs"
-	githubRepo  = "britivectl"
+	// Releases are published to a dedicated repo so that goreleaser artifacts
+	// (signed binaries, SBOMs, checksums) live separately from source-side
+	// release-please tags. The install script uses this same repo, and using
+	// it here keeps the update self-replace path consistent with the install
+	// path.
+	githubRepo = "britivectl-releases"
 )
 
 // CheckLatest fetches the latest release from GitHub and returns the version,
