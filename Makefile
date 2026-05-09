@@ -210,12 +210,12 @@ bootstrap-aws: ## Create least-privilege terraform-cli IAM user (uses root creds
 	./scripts/bootstrap-aws.sh
 
 docs: ## Build docs site locally (output: site/)
-	pip3 install -q --break-system-packages mkdocs-material
+	python3 -m pip install -q --break-system-packages -r docs/requirements.txt
 	python3 -m mkdocs build --strict --site-dir site
 
 docs-serve: ## Serve docs locally with live reload (http://localhost:8000)
-	pip3 install -q --break-system-packages mkdocs-material
-	python3 -m mkdocs serve
+	python3 -m pip install -q --break-system-packages -r docs/requirements.txt
+	python3 -m mkdocs serve --dirty
 
 docs-deploy: docs ## Build and deploy docs to S3 + invalidate CloudFront
 	AWS_PROFILE=terraform aws s3 sync site/ s3://smichalabs-docs/utils/bctl --delete --cache-control "max-age=300"
