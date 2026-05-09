@@ -2,6 +2,7 @@ site_name: bctl
 docs_dir: docs/docs
 site_description: A fast CLI for Britive JIT access management
 site_url: https://smichalabs.dev/utils/bctl/
+copyright: Built by <a href="https://github.com/smichalabs">Sajeeve</a> -- <a href="https://www.linkedin.com/in/smicha/">LinkedIn</a>
 
 theme:
   name: material
@@ -67,3 +68,7 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/smichalabs/britivectl
+      name: bctl on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/smicha/
+      name: Sajeeve on LinkedIn
