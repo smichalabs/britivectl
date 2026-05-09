@@ -23,9 +23,14 @@ The first time you run bctl on a new machine, it asks for your Britive tenant an
 
 ## What it does
 
-bctl is a single binary that fuzzy-searches your entitled profiles and writes credentials to your local cloud config (e.g. `~/.aws/credentials`) so you can immediately run `aws`, `kubectl`, `terraform`, or anything else that reads them.
+bctl is a single binary that handles the full developer loop for Britive JIT access on AWS **and** EKS:
 
-When your Britive session expires, the next bctl command opens your browser for SSO automatically -- you do not run `bctl login` separately. Cloud credentials themselves are also cached locally, so repeat checkouts of the same profile are instant and skip the Britive API entirely. See [Sessions & caching](sessions.md) for details.
+- **AWS credentials**, written automatically. Fuzzy-search your Britive profiles, pick one, and bctl writes the access key, secret, and session token straight to `~/.aws/credentials` under the right profile name. `aws s3 ls --profile aws-admin-prod` works immediately. No copy-paste, no `aws configure`.
+- **EKS kubeconfig, in the same command.** `bctl checkout admin-prod --eks` checks out the AWS credentials *and* runs `aws eks update-kubeconfig` for every cluster on the profile, so `kubectl get pods` works without a second step. If your AWS account does not allow listing clusters, pass `--cluster <name>` explicitly. This is the part the Britive web UI and pybritive leave to you.
+- **Auto re-auth on session expiry.** When the Britive session JWT expires, the next `bctl checkout` opens your browser for SSO automatically and finishes the original command. No separate `bctl login` step to remember.
+- **Skip-if-fresh credential cache.** Re-checking out a profile that still has time left is instant and skips the Britive API entirely. Pass `--force` to override.
+
+See [Sessions & caching](sessions.md) for the full details on auto re-auth and the credential cache.
 
 ## Use
 
