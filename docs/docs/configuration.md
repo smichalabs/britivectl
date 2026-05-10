@@ -44,6 +44,7 @@ Environment variables override values in the config file.
 | `BCTL_REGION` | Default AWS region |
 | `BCTL_NO_COLOR` | Disable colour output |
 | `BCTL_KEYRING_BACKEND` | Force the credentials backend. Set to `file` to skip the OS keychain and store the token in an encrypted file under the bctl config directory. Useful on WSL and other headless Linux environments without a keychain daemon. |
+| `BCTL_NO_UPDATE_CHECK` | Set to any non-empty value to disable the periodic update notifier. Default behaviour is to check GitHub at most once every 24 hours and print a one-line notice on stderr when a newer release is available. The check is automatically skipped when `CI` or `GITHUB_ACTIONS` is set, when stderr is not a terminal, and on dev builds. |
 
 ## Auth methods
 

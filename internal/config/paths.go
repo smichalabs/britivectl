@@ -20,8 +20,9 @@ const (
 	legacyDirName = ".bctl"
 	appDirName    = "bctl"
 
-	configFileName   = "config.yaml"
-	profilesFileName = "profiles.json"
+	configFileName      = "config.yaml"
+	profilesFileName    = "profiles.json"
+	updateCheckFileName = "update_check.json"
 )
 
 // legacyDir returns the pre-XDG directory (~/.bctl).
@@ -59,6 +60,14 @@ func ConfigFilePath() string {
 // ProfilesCachePath returns the absolute path to the profiles cache file.
 func ProfilesCachePath() string {
 	return filepath.Join(xdgCacheDir(), profilesFileName)
+}
+
+// UpdateCheckCachePath returns the absolute path to the update notifier
+// cache file. The notifier writes the latest-known release tag and a
+// "checked at" timestamp here so subsequent invocations can decide whether
+// to re-hit the network.
+func UpdateCheckCachePath() string {
+	return filepath.Join(xdgCacheDir(), updateCheckFileName)
 }
 
 // EnsureXDGDirs creates the XDG config and cache directories if they do not
