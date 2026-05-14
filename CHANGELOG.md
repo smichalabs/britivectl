@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2](https://github.com/smichalabs/britivectl/compare/v0.10.1...v0.10.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* **eks:** retry list-clusters on empty result to handle STS propagation ([#114](https://github.com/smichalabs/britivectl/issues/114)) ([5ea3f22](https://github.com/smichalabs/britivectl/commit/5ea3f2206e66f42c1fdc58e000d042245500933c))
+
 ## [0.10.1](https://github.com/smichalabs/britivectl/compare/v0.10.0...v0.10.1) (2026-05-09)
 
 
