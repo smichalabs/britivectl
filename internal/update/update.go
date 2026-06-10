@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,29 +16,71 @@ import (
 	"time"
 
 	"github.com/google/go-github/v60/github"
+	"golang.org/x/mod/semver"
 )
 
 const (
 	githubOwner = "smichalabs"
-	githubRepo  = "britivectl"
+	// Release artifacts (signed binaries, checksums, SBOMs) publish to a
+	// dedicated repo. The source repo's /releases/latest is unreliable as
+	// a "latest version" source because release-please leaves draft entries
+	// behind that the API skips, leaving an old release flagged as latest.
+	// install.sh and the in-binary update check both query this repo so the
+	// "newer version" decision matches what a fresh curl install would see.
+	githubRepo = "britivectl-releases"
 )
 
+// githubBaseURL overrides the GitHub API host that CheckLatest talks to.
+// Empty (the production case) means the go-github default. Tests stand up
+// an httptest server and set this so CheckLatest can be exercised without
+// real network calls.
+var githubBaseURL string
+
 // CheckLatest fetches the latest release from GitHub and returns the version,
-// whether it's newer than currentVersion, and any error.
+// whether it's newer than currentVersion (strict semver compare -- never
+// prompts a downgrade), and any error.
+//
 // The context controls cancellation; callers should set a reasonable timeout.
 func CheckLatest(ctx context.Context, currentVersion string) (string, bool, error) {
 	client := github.NewClient(nil)
+	if githubBaseURL != "" {
+		u, err := url.Parse(githubBaseURL)
+		if err != nil {
+			return "", false, fmt.Errorf("parsing test base URL: %w", err)
+		}
+		client.BaseURL = u
+	}
 	release, _, err := client.Repositories.GetLatestRelease(ctx, githubOwner, githubRepo)
 	if err != nil {
 		return "", false, fmt.Errorf("fetching latest release: %w", err)
 	}
 
 	latest := strings.TrimPrefix(release.GetTagName(), "v")
-	current := strings.TrimPrefix(currentVersion, "v")
+	return latest, isVersionNewer(latest, currentVersion), nil
+}
 
-	// Never prompt to update dev or alpha builds
-	isNewer := latest != current && current != "0.0.1-alpha" && current != "dev"
-	return latest, isNewer, nil
+// isVersionNewer reports whether `latest` is strictly greater than the
+// current binary version using semver-aware comparison. Never returns true
+// for dev / 0.0.1-alpha / non-semver builds -- those are local builds that
+// should never be prompted to "update" to a release tag.
+//
+// Both values are normalized to the `vX.Y.Z` form before comparison because
+// golang.org/x/mod/semver requires the leading `v`.
+func isVersionNewer(latest, current string) bool {
+	current = strings.TrimPrefix(current, "v")
+	if current == "" || current == "dev" || current == "0.0.1-alpha" || strings.Contains(current, "-dev") {
+		return false
+	}
+
+	latestV := "v" + strings.TrimPrefix(latest, "v")
+	currentV := "v" + current
+
+	// semver.IsValid rejects anything that doesn't parse as semver, in which
+	// case we fall back to "not newer" rather than risk a downgrade prompt.
+	if !semver.IsValid(latestV) || !semver.IsValid(currentV) {
+		return false
+	}
+	return semver.Compare(latestV, currentV) > 0
 }
 
 // DoUpdate downloads the specified release version and replaces the running binary.
