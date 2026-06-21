@@ -10,9 +10,17 @@ import (
 )
 
 const (
-	keychainService     = "bctl"
-	credentialsDirName  = "credentials"
-	filePassphraseConst = "bctl-file-backend"
+	keychainService    = "bctl"
+	credentialsDirName = "credentials"
+	// filePassphraseConst is the fixed passphrase for the keyring file backend,
+	// reached only on systems with no OS keychain (headless Linux, WSL). The
+	// file backend exists precisely because there is no secure secret store on
+	// that path, so there is nowhere to keep a per-user secret. The stored
+	// token's confidentiality rests on the 0600 file inside the 0700
+	// credentials dir, not on this value, which is compiled into the public
+	// binary. It is not a credential to any external system, and changing it
+	// would orphan tokens already encrypted on disk by older builds.
+	filePassphraseConst = "bctl-file-backend" // #nosec G101 -- fixed file-backend passphrase, not a secret; see comment above
 )
 
 // openKeyring opens the OS keychain (or a file fallback on systems without

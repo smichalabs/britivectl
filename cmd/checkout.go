@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -29,6 +30,11 @@ const freshnessBuffer = 5 * time.Minute
 // user-friendly message -- while still exiting non-zero so scripts can tell
 // the checkout did not produce credentials.
 var errUnsupportedCloud = errors.New("profile cloud is not supported")
+
+// pickerOut is where the interactive resolver picker writes its menu. It is
+// stderr, never stdout, so an ambiguous alias under a machine output format
+// (-o process/json/env) cannot corrupt the credential payload on stdout.
+var pickerOut io.Writer = os.Stderr
 
 func newCheckoutCmd() *cobra.Command {
 	var (
@@ -101,7 +107,7 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 	}
 
 	// 2. Resolve the user's query to a single profile.
-	match, err := resolver.Resolve(ctx, ready.Profiles, query, os.Stdin, os.Stdout)
+	match, err := resolver.Resolve(ctx, ready.Profiles, query, os.Stdin, pickerOut)
 	if err != nil {
 		if errors.Is(err, resolver.ErrCanceled) {
 			output.Info("Canceled.")
@@ -161,8 +167,17 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 	}
 
 	client := newAPIClient(ready.Tenant, ready.Token)
+	return checkoutResolved(ctx, client, ready.Tenant, match, eks, force, outFmt)
+}
 
-	// 5a. Check Britive for an already-active session before attempting a new
+// checkoutResolved performs the Britive-facing half of a checkout once the
+// profile has been resolved: it reuses an active session if one exists,
+// otherwise checks out fresh, then injects the credentials and updates EKS.
+// Status output goes to stderr (via the output package and the spinner), so it
+// is safe to leave the spinner unconditional now that stdout carries only the
+// machine payload.
+func checkoutResolved(ctx context.Context, client *britive.Client, tenant string, match resolver.Match, eks, force bool, outFmt string) error {
+	// Check Britive for an already-active session before attempting a new
 	// checkout. This handles the case where the user already has credentials
 	// live on the Britive side but no local cache (e.g. same profile used from
 	// a different project directory or a different machine). Without this,
@@ -172,7 +187,7 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 		existing, err := findActiveSession(ctx, client, match.Profile.ProfileID)
 		switch {
 		case err == nil:
-			return reuseExistingSession(ctx, client, ready.Tenant, match, existing, eks, outFmt)
+			return reuseExistingSession(ctx, client, tenant, match, existing, eks, outFmt)
 		case errors.Is(err, errNoActiveSession):
 			// No active session; fall through to a fresh checkout.
 		default:
@@ -191,19 +206,23 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 	}
 	spin.Success(fmt.Sprintf("Checked out %s (expires: %s)", match.Alias, checkedOut.Expiration))
 
-	// 6. Persist the freshness state for next time.
-	if err := saveCheckoutState(ready.Tenant, match.Alias, checkedOut.TransactionID, checkedOut.Expiration); err != nil {
+	// Carry the checkout expiry onto the credentials so the process output can
+	// emit Expiration, letting the AWS SDK cache instead of calling bctl on
+	// every request. Normalize to RFC3339 UTC because the AWS SDK rejects the
+	// other layouts Britive sometimes returns.
+	creds.Expiration = normalizeExpiration(checkedOut.Expiration)
+
+	// Persist the freshness state for next time.
+	if err := saveCheckoutState(tenant, match.Alias, checkedOut.TransactionID, checkedOut.Expiration); err != nil {
 		// Non-fatal -- the credentials are valid even if we cannot record
 		// the cache. Print a warning so the user can see what happened.
 		output.Warning("could not save checkout cache: %v", err)
 	}
 
-	// 7. Inject credentials locally.
 	if err := injectAWS(match, creds, outFmt); err != nil {
 		return err
 	}
 
-	// 8. Optional EKS kubeconfig update.
 	if eks {
 		return connectEKS(ctx, match, creds)
 	}
@@ -244,6 +263,14 @@ func reuseExistingSession(ctx context.Context, client *britive.Client, tenant st
 		return fmt.Errorf("fetching credentials for existing checkout: %w", err)
 	}
 
+	// GetCredentials does not return the expiry, so copy it from the active
+	// session. Without this the process output omits Expiration and the AWS
+	// SDK cannot cache, calling bctl on every request. Normalize to RFC3339 UTC
+	// so the AWS SDK accepts it.
+	creds.Expiration = normalizeExpiration(existing.Expiration)
+
+	// Status goes to stderr, so it is safe to print on every format; stdout
+	// still carries only the machine payload.
 	output.Success("Reusing existing checkout for %s (expires: %s)", match.Alias, existing.Expiration)
 
 	if err := saveCheckoutState(tenant, match.Alias, existing.TransactionID, existing.Expiration); err != nil {
@@ -279,22 +306,7 @@ func outFmtWritesAWSCredsFile(outFmt string) bool {
 // valid. The expiration string comes from the Britive API; if it cannot be
 // parsed, the cache is skipped (the checkout itself still succeeded).
 func saveCheckoutState(tenant, alias, txnID, expiration string) error {
-	expiresAt, err := time.Parse(time.RFC3339, expiration)
-	if err != nil {
-		// Britive sometimes uses subtly different formats. Try a couple
-		// of common ones before giving up.
-		for _, layout := range []string{
-			"2006-01-02T15:04:05Z",
-			"2006-01-02T15:04:05.000Z",
-			time.RFC3339Nano,
-		} {
-			if t, e := time.Parse(layout, expiration); e == nil {
-				expiresAt = t
-				err = nil
-				break
-			}
-		}
-	}
+	expiresAt, err := parseBritiveTime(expiration)
 	if err != nil {
 		return fmt.Errorf("parsing expiration %q: %w", expiration, err)
 	}
@@ -306,6 +318,44 @@ func saveCheckoutState(tenant, alias, txnID, expiration string) error {
 		CheckedOutAt:  time.Now().UTC(),
 		ExpiresAt:     expiresAt.UTC(),
 	})
+}
+
+// britiveTimeLayouts lists the timestamp formats Britive has been observed to
+// return for an expiration. RFC3339 is tried first; the rest cover the subtly
+// different shapes (bare Z, millisecond Z, fractional nano with offset).
+var britiveTimeLayouts = []string{
+	time.RFC3339,
+	"2006-01-02T15:04:05Z",
+	"2006-01-02T15:04:05.000Z",
+	time.RFC3339Nano,
+	"2006-01-02 15:04:05",
+}
+
+// parseBritiveTime parses a Britive expiration string against the known
+// layouts, returning the value in UTC.
+func parseBritiveTime(raw string) (time.Time, error) {
+	for _, layout := range britiveTimeLayouts {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized time format %q", raw)
+}
+
+// normalizeExpiration returns the expiration as RFC3339 in UTC so the
+// process/json/env output the AWS SDK consumes is always parseable. Empty in,
+// empty out. A value that matches none of the known layouts is omitted (empty)
+// rather than passed through: a non-RFC3339 string would make the SDK reject
+// the credentials and re-invoke the credential_process on every call, so it is
+// safer to emit no Expiration and let the SDK skip caching.
+func normalizeExpiration(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if t, err := parseBritiveTime(raw); err == nil {
+		return t.Format(time.RFC3339)
+	}
+	return ""
 }
 
 // formatDuration renders a duration in a way humans actually read at a
@@ -462,12 +512,14 @@ func injectAWS(match resolver.Match, creds *britive.Credentials, outFmt string) 
 			"AWS_DEFAULT_REGION":    region,
 		})
 	case "process":
-		output.PrintAWSCredsProcess(map[string]string{
+		if err := output.PrintAWSCredsProcess(map[string]string{
 			"AccessKeyId":     creds.AccessKeyID,
 			"SecretAccessKey": creds.SecretAccessKey,
 			"SessionToken":    creds.SessionToken,
 			"Expiration":      creds.Expiration,
-		})
+		}); err != nil {
+			return err
+		}
 	case "json":
 		if err := output.PrintJSON(creds); err != nil {
 			return err

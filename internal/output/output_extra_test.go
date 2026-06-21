@@ -29,7 +29,7 @@ func captureStderr(t *testing.T, fn func()) string {
 }
 
 func TestSuccess(t *testing.T) {
-	got := captureStdout(t, func() {
+	got := captureStderr(t, func() {
 		output.Success("hello %s", "world")
 	})
 	if !strings.Contains(got, "hello world") {
@@ -47,7 +47,7 @@ func TestError(t *testing.T) {
 }
 
 func TestWarning(t *testing.T) {
-	got := captureStdout(t, func() {
+	got := captureStderr(t, func() {
 		output.Warning("warn %s", "msg")
 	})
 	if !strings.Contains(got, "warn msg") {
@@ -56,7 +56,7 @@ func TestWarning(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	got := captureStdout(t, func() {
+	got := captureStderr(t, func() {
 		output.Info("info %s", "msg")
 	})
 	if !strings.Contains(got, "info msg") {

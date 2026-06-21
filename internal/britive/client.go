@@ -34,6 +34,15 @@ func NewClient(tenant, token string) *Client {
 	}
 }
 
+// NewClientWithBaseURL creates an API-token client pointed at an explicit base
+// URL. It exists so tests can target an httptest server instead of the live
+// Britive tenant host.
+func NewClientWithBaseURL(tenant, token, baseURL string) *Client {
+	c := NewClient(tenant, token)
+	c.baseURL = baseURL
+	return c
+}
+
 // NewBearerClient creates a Britive API client using a Bearer JWT (from browser SSO).
 func NewBearerClient(tenant, token string) *Client {
 	return &Client{
