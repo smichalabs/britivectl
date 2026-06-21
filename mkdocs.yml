@@ -40,6 +40,7 @@ nav:
   - Quick Start: quickstart.md
   - Sessions & caching: sessions.md
   - Configuration: configuration.md
+  - AWS CLI Integration: credential-process.md
   - Commands:
       - checkout: commands/checkout.md
       - checkin: commands/checkin.md

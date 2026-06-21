@@ -23,9 +23,11 @@ var (
 	infoColor    = color.New(color.FgCyan)
 )
 
-// Success prints a green success message to stdout.
+// Success prints a green success message to stderr. Status output goes to
+// stderr so stdout stays reserved for machine-readable payloads (credential
+// JSON, env lines), which is what credential_process and eval consumers parse.
 func Success(format string, args ...interface{}) {
-	_, _ = successColor.Fprintf(os.Stdout, "✓ "+format+"\n", args...)
+	_, _ = successColor.Fprintf(os.Stderr, "✓ "+format+"\n", args...)
 }
 
 // Error prints a red error message to stderr.
@@ -33,14 +35,14 @@ func Error(format string, args ...interface{}) {
 	_, _ = errorColor.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
 }
 
-// Warning prints a yellow warning message to stdout.
+// Warning prints a yellow warning message to stderr (see Success).
 func Warning(format string, args ...interface{}) {
-	_, _ = warningColor.Fprintf(os.Stdout, "⚠ "+format+"\n", args...)
+	_, _ = warningColor.Fprintf(os.Stderr, "⚠ "+format+"\n", args...)
 }
 
-// Info prints a cyan info message to stdout.
+// Info prints a cyan info message to stderr (see Success).
 func Info(format string, args ...interface{}) {
-	_, _ = infoColor.Fprintf(os.Stdout, "  "+format+"\n", args...)
+	_, _ = infoColor.Fprintf(os.Stderr, "  "+format+"\n", args...)
 }
 
 // PrintJSON marshals v to indented JSON and writes to stdout.
@@ -71,8 +73,10 @@ func PrintEnv(kv map[string]string) {
 	}
 }
 
-// PrintAWSCredsProcess prints AWS credential_process JSON output.
-func PrintAWSCredsProcess(creds map[string]string) {
+// PrintAWSCredsProcess prints AWS credential_process JSON output. A marshal
+// failure returns an error so the caller can exit non-zero rather than emit
+// empty output that the AWS SDK would reject.
+func PrintAWSCredsProcess(creds map[string]string) error {
 	out := map[string]interface{}{
 		"Version":         1,
 		"AccessKeyId":     creds["AccessKeyId"],
@@ -84,6 +88,10 @@ func PrintAWSCredsProcess(creds map[string]string) {
 	if v, ok := creds["Expiration"]; ok && v != "" {
 		out["Expiration"] = v
 	}
-	data, _ := json.MarshalIndent(out, "", "  ")
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling credential_process JSON: %w", err)
+	}
 	fmt.Println(string(data))
+	return nil
 }
