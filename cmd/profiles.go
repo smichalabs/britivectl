@@ -49,9 +49,10 @@ fields that have a meaningful value for every profile. Pass --verbose
 to also show region and AWS profile name overrides; those columns are
 populated only for profiles you have customized in config.yaml.
 
-The cache is auto-refreshed in the background if it is older than one
-hour, so users who were added to a new profile during the day do not
-have to run 'bctl profiles sync' manually. Pass --refresh to force a
+If the cache is older than one hour, 'bctl profiles list' transparently
+syncs from the Britive API as part of the same command (you will see a
+short spinner). Users who were added to a new profile during the day do
+not have to run 'bctl profiles sync' manually. Pass --refresh to force a
 sync even on a fresh cache, or --no-sync to always use the cache as-is
 (handy when offline).`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
