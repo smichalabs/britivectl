@@ -375,6 +375,66 @@ func TestLoadOrSyncProfiles_FallbackToConfigProfiles(t *testing.T) {
 	}
 }
 
+// TestEnsureReady_ConfigOverridesCache_AWSProfile verifies that per-profile
+// overrides set in config.yaml (e.g. aws_profile) overlay onto the profiles
+// served from the sync cache. The cache is rebuilt from the Britive API on
+// every sync and carries only API-derived fields, so without the overlay a
+// user's aws_profile setting would never reach checkout.
+func TestEnsureReady_ConfigOverridesCache_AWSProfile(t *testing.T) {
+	setupTestHome(t)
+
+	if err := os.MkdirAll(config.ConfigDir(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Tenant: "acme",
+		Profiles: map[string]config.Profile{
+			"ctp_aws-dev-nonprod": {AWSProfile: "default"},
+		},
+	}
+	if err := config.Save(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fresh cache as written by sync: full API fields, empty AWSProfile.
+	cache := &config.ProfilesCache{
+		SyncedAt: time.Now().UTC().Add(-1 * time.Minute),
+		Profiles: map[string]config.Profile{
+			"ctp_aws-dev-nonprod": {
+				ProfileID:     "p1",
+				EnvironmentID: "e1",
+				BritivePath:   "AWS/Dev/Admin",
+				Cloud:         "aws",
+			},
+		},
+	}
+	if err := config.SaveProfilesCache(cache); err != nil {
+		t.Fatal(err)
+	}
+
+	token := makeJWT(t, time.Now().Add(1*time.Hour).Unix())
+	cb := Callbacks{
+		TokenStore: fakeTokenStore{token: token, tokenType: "Bearer", expiry: britive.JWTExpiry(token)},
+		RunSync: func(_ context.Context, _, _ string) (map[string]config.Profile, error) {
+			t.Error("RunSync should not be called when cache is fresh")
+			return nil, errors.New("should not be called")
+		},
+	}
+
+	ready, err := EnsureReady(context.Background(), cb)
+	if err != nil {
+		t.Fatalf("EnsureReady() error = %v", err)
+	}
+	got := ready.Profiles["ctp_aws-dev-nonprod"]
+	if got.AWSProfile != "default" {
+		t.Errorf("AWSProfile = %q, want %q (config override should overlay onto cache)", got.AWSProfile, "default")
+	}
+	// API-derived fields must survive the overlay.
+	if got.ProfileID != "p1" || got.EnvironmentID != "e1" || got.Cloud != "aws" {
+		t.Errorf("API fields lost after overlay: %+v", got)
+	}
+}
+
 // TestLoadOrSyncProfiles_NoSyncNoCacheNoProfiles tests the failure case
 // where absolutely nothing is available.
 func TestEnsureReady_NothingAvailable_Errors(t *testing.T) {

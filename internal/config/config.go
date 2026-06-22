@@ -34,6 +34,44 @@ type Profile struct {
 	EKSClusters []string `mapstructure:"eks_clusters" yaml:"eks_clusters"`
 }
 
+// ApplyProfileOverrides overlays user-defined per-profile settings from
+// config.yaml (overrides) onto profiles sourced from the Britive sync cache
+// (base). The cache is rebuilt from the Britive API on every sync and carries
+// only API-derived fields, so without this overlay a user's aws_profile /
+// region / cloud / eks_clusters settings would never take effect. The overlay
+// is field-by-field and only for non-empty values, so an override never blanks
+// out an API-provided value. A profile present only in config.yaml (no API
+// entry) is kept as-is so manually-authored profiles still resolve.
+func ApplyProfileOverrides(base, overrides map[string]Profile) map[string]Profile {
+	if len(overrides) == 0 {
+		return base
+	}
+	if base == nil {
+		base = map[string]Profile{}
+	}
+	for alias, ov := range overrides {
+		p, ok := base[alias]
+		if !ok {
+			base[alias] = ov
+			continue
+		}
+		if ov.AWSProfile != "" {
+			p.AWSProfile = ov.AWSProfile
+		}
+		if ov.Region != "" {
+			p.Region = ov.Region
+		}
+		if ov.Cloud != "" {
+			p.Cloud = ov.Cloud
+		}
+		if len(ov.EKSClusters) > 0 {
+			p.EKSClusters = ov.EKSClusters
+		}
+		base[alias] = p
+	}
+	return base
+}
+
 // ConfigDir returns the XDG config directory for bctl (e.g. ~/.config/bctl).
 // Historically this returned ~/.bctl -- migration is handled by MigrateLegacyDir.
 func ConfigDir() string { //nolint:revive // name predates this lint rule

@@ -94,16 +94,22 @@ func runProfilesList(ctx context.Context, verbose, refresh, noSync bool) error {
 		}
 	}
 
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
 	var profiles map[string]config.Profile
 	if cache != nil && len(cache.Profiles) > 0 {
 		profiles = cache.Profiles
 	} else {
-		cfg, err := config.Load()
-		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
-		}
 		profiles = cfg.Profiles
 	}
+
+	// Overlay config.yaml per-profile overrides so the REGION / AWS PROFILE
+	// columns reflect what checkout actually uses, not the raw Britive cache
+	// (see internal/state loadOrSyncProfiles for the checkout-side overlay).
+	profiles = config.ApplyProfileOverrides(profiles, cfg.Profiles)
 
 	if len(profiles) == 0 {
 		output.Info("No profiles configured. Run 'bctl profiles sync' to fetch from API.")

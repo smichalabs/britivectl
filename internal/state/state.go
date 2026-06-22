@@ -174,8 +174,20 @@ func requireValidToken(ctx context.Context, tenant string, store TokenStore, run
 }
 
 // loadOrSyncProfiles returns the freshest set of profiles, running sync if
-// the cache is missing or stale.
+// the cache is missing or stale, then overlays any per-profile overrides the
+// user set in config.yaml.
 func loadOrSyncProfiles(ctx context.Context, cfg *config.Config, token string, runSync func(context.Context, string, string) (map[string]config.Profile, error)) (map[string]config.Profile, error) {
+	base, err := resolveBaseProfiles(ctx, cfg, token, runSync)
+	if err != nil {
+		return nil, err
+	}
+	return config.ApplyProfileOverrides(base, cfg.Profiles), nil
+}
+
+// resolveBaseProfiles returns the API-sourced profiles: the on-disk sync cache
+// if it is fresh, otherwise a fresh sync, otherwise (non-interactive path)
+// whatever is in config.yaml.
+func resolveBaseProfiles(ctx context.Context, cfg *config.Config, token string, runSync func(context.Context, string, string) (map[string]config.Profile, error)) (map[string]config.Profile, error) {
 	cache, err := config.LoadProfilesCache(cfg.Tenant)
 	if err != nil && !errors.Is(err, config.ErrCacheMiss) {
 		return nil, fmt.Errorf("loading profiles cache: %w", err)
