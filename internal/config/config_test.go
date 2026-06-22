@@ -181,3 +181,45 @@ func TestSave_RenameError(t *testing.T) {
 		t.Fatal("expected error when config.yaml is a directory, got nil")
 	}
 }
+
+func TestApplyProfileOverrides(t *testing.T) {
+	base := map[string]config.Profile{
+		// API-sourced entry with no user fields set.
+		"ctp_aws-dev-nonprod": {
+			ProfileID:     "p1",
+			EnvironmentID: "e1",
+			BritivePath:   "AWS/Dev/Admin",
+			Cloud:         "aws",
+		},
+		// API entry the user does not override -- must pass through untouched.
+		"ctp_aws-prod": {ProfileID: "p2", Cloud: "aws"},
+	}
+	overrides := map[string]config.Profile{
+		"ctp_aws-dev-nonprod": {AWSProfile: "default", Region: "us-east-1"},
+		// Profile defined only in config.yaml -- must be added as-is.
+		"manual-only": {Cloud: "aws", BritivePath: "AWS/Manual"},
+	}
+
+	got := config.ApplyProfileOverrides(base, overrides)
+
+	dev := got["ctp_aws-dev-nonprod"]
+	if dev.AWSProfile != "default" || dev.Region != "us-east-1" {
+		t.Errorf("override not applied: %+v", dev)
+	}
+	if dev.ProfileID != "p1" || dev.EnvironmentID != "e1" || dev.Cloud != "aws" {
+		t.Errorf("API fields lost after overlay: %+v", dev)
+	}
+	if prod := got["ctp_aws-prod"]; prod.ProfileID != "p2" || prod.AWSProfile != "" {
+		t.Errorf("non-overridden profile changed: %+v", prod)
+	}
+	if manual, ok := got["manual-only"]; !ok || manual.BritivePath != "AWS/Manual" {
+		t.Errorf("config-only profile not added: %+v", manual)
+	}
+}
+
+func TestApplyProfileOverrides_NoOverrides(t *testing.T) {
+	base := map[string]config.Profile{"a": {Cloud: "aws"}}
+	if got := config.ApplyProfileOverrides(base, nil); len(got) != 1 || got["a"].Cloud != "aws" {
+		t.Errorf("nil overrides should return base unchanged, got %+v", got)
+	}
+}
