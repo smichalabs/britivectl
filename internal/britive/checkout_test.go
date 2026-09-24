@@ -379,3 +379,143 @@ func TestCheckout_SessionError(t *testing.T) {
 		t.Fatal("expected error when app-access-status returns 500, got nil")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Console checkout
+// ---------------------------------------------------------------------------
+
+func TestCheckoutConsole_Success(t *testing.T) {
+	const signinURL = "https://signin.aws.amazon.com/federation?Action=login&SigninToken=abc"
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/access/prof123/environments/env456", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if got := r.URL.Query().Get("accessType"); got != AccessTypeConsole {
+			t.Errorf("accessType = %q; want %q", got, AccessTypeConsole)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(Transaction{TransactionID: "txnC", AccessType: AccessTypeConsole})
+	})
+	mux.HandleFunc("/api/access/app-access-status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]CheckedOutProfile{{
+			TransactionID: "txnC",
+			PapID:         "prof123",
+			EnvironmentID: "env456",
+			AccessType:    AccessTypeConsole,
+			Status:        "checkedOut",
+			Expiration:    "2026-01-01T00:00:00Z",
+		}})
+	})
+	mux.HandleFunc("/api/access/txnC/url", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"url": signinURL})
+	})
+	mux.HandleFunc("/api/access/txnC/tokens", func(w http.ResponseWriter, r *http.Request) {
+		t.Error("console checkout must not fetch programmatic tokens")
+	})
+
+	c := newTestClient(t, mux)
+	checkedOut, got, err := c.CheckoutConsole(context.Background(), "prof123", "env456")
+	if err != nil {
+		t.Fatalf("CheckoutConsole() unexpected error: %v", err)
+	}
+	if checkedOut.TransactionID != "txnC" {
+		t.Errorf("TransactionID = %q; want %q", checkedOut.TransactionID, "txnC")
+	}
+	if got != signinURL {
+		t.Errorf("url = %q; want %q", got, signinURL)
+	}
+}
+
+func TestCheckout_SendsProgrammaticAccessType(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("accessType"); got != AccessTypeProgrammatic {
+			t.Errorf("accessType = %q; want %q", got, AccessTypeProgrammatic)
+		}
+		http.Error(w, "stop", http.StatusBadRequest)
+	})
+	c := newTestClient(t, handler)
+	if _, _, err := c.Checkout(context.Background(), "prof1", "env1"); err == nil {
+		t.Fatal("expected error from 400 response, got nil")
+	}
+}
+
+func TestCheckoutConsole_EmptyIDs(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("handler should not be called for empty IDs")
+	}))
+	if _, _, err := c.CheckoutConsole(context.Background(), "", "env1"); err == nil {
+		t.Fatal("expected error for empty profileID, got nil")
+	}
+}
+
+func TestGetConsoleURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		status  int
+		want    string
+		wantErr bool
+	}{
+		{name: "object", body: `{"url":"https://portal.azure.com/#home"}`, want: "https://portal.azure.com/#home"},
+		{name: "bare string", body: `"https://console.cloud.google.com/"`, want: "https://console.cloud.google.com/"},
+		{name: "http scheme rejected", body: `{"url":"http://example.com/"}`, wantErr: true},
+		{name: "non-url scheme rejected", body: `"file:///etc/passwd"`, wantErr: true},
+		{name: "empty url", body: `{"url":""}`, wantErr: true},
+		{name: "unexpected shape", body: `[1,2]`, wantErr: true},
+		{name: "api error", body: `nope`, status: http.StatusInternalServerError, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/access/txn1/url" {
+					http.NotFound(w, r)
+					return
+				}
+				if tt.status != 0 {
+					w.WriteHeader(tt.status)
+				}
+				_, _ = w.Write([]byte(tt.body))
+			})
+			c := newTestClient(t, handler)
+			got, err := c.GetConsoleURL(context.Background(), "txn1")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got url %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("url = %q; want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckedOutProfile_HasAccessType(t *testing.T) {
+	tests := []struct {
+		sessionType string
+		query       string
+		want        bool
+	}{
+		{AccessTypeProgrammatic, AccessTypeProgrammatic, true},
+		{AccessTypeConsole, AccessTypeConsole, true},
+		{AccessTypeConsole, AccessTypeProgrammatic, false},
+		{AccessTypeProgrammatic, AccessTypeConsole, false},
+		{"", AccessTypeProgrammatic, true},
+		{"", AccessTypeConsole, false},
+	}
+	for _, tt := range tests {
+		p := CheckedOutProfile{AccessType: tt.sessionType}
+		if got := p.HasAccessType(tt.query); got != tt.want {
+			t.Errorf("HasAccessType(%q) on %q session = %v; want %v", tt.query, tt.sessionType, got, tt.want)
+		}
+	}
+}
