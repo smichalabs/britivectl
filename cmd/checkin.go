@@ -15,7 +15,10 @@ import (
 )
 
 func newCheckinCmd() *cobra.Command {
-	var all bool
+	var (
+		all     bool
+		console bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "checkin [alias]",
@@ -24,8 +27,13 @@ func newCheckinCmd() *cobra.Command {
 
 Pass --all to check in every active session at once. This is handy at the
 end of the day when multiple profiles are in flight and you want to
-release them all without iterating one alias at a time.`,
+release them all without iterating one alias at a time.
+
+Programmatic and console checkouts of the same profile are separate
+sessions. Pass --console to check in the console session instead of the
+programmatic one.`,
 		Example: `  bctl checkin aws-admin-prod
+  bctl checkin aws-admin-prod --console
   bctl checkin --all`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -33,21 +41,25 @@ release them all without iterating one alias at a time.`,
 				if len(args) > 0 {
 					return fmt.Errorf("cannot combine --all with an alias argument")
 				}
+				if console {
+					return fmt.Errorf("cannot combine --all with --console")
+				}
 				return runCheckinAll(cmd.Context())
 			}
 			var query string
 			if len(args) == 1 {
 				query = args[0]
 			}
-			return runCheckin(cmd.Context(), query)
+			return runCheckin(cmd.Context(), query, console)
 		},
 	}
 
 	cmd.Flags().BoolVar(&all, "all", false, "check in every active session")
+	cmd.Flags().BoolVar(&console, "console", false, "check in the console session instead of the programmatic one")
 	return cmd
 }
 
-func runCheckin(ctx context.Context, query string) error {
+func runCheckin(ctx context.Context, query string, console bool) error {
 	// Reconcile state the same way checkout does so checkin can match any
 	// profile the user can see -- not just ones explicitly written to the
 	// config file. Earlier versions looked up cfg.Profiles[alias] directly,
@@ -79,15 +91,22 @@ func runCheckin(ctx context.Context, query string) error {
 		return fmt.Errorf("fetching active sessions: %w", err)
 	}
 
+	accessType := britive.AccessTypeProgrammatic
+	kind := "checkout"
+	if console {
+		accessType = britive.AccessTypeConsole
+		kind = "console checkout"
+	}
+
 	var transactionID string
 	for _, s := range sessions {
-		if s.CheckedIn == nil && s.PapID == match.Profile.ProfileID {
+		if s.CheckedIn == nil && s.PapID == match.Profile.ProfileID && s.HasAccessType(accessType) {
 			transactionID = s.TransactionID
 			break
 		}
 	}
 	if transactionID == "" {
-		return fmt.Errorf("no active checkout found for %q", match.Alias)
+		return fmt.Errorf("no active %s found for %q", kind, match.Alias)
 	}
 
 	spin := output.NewSpinner(fmt.Sprintf("Checking in %s...", match.Alias))
@@ -99,9 +118,12 @@ func runCheckin(ctx context.Context, query string) error {
 	}
 
 	// Drop the local freshness cache so the next 'bctl checkout' actually
-	// hits the Britive API instead of trusting stale state.
-	if err := config.DeleteCheckoutState(match.Alias); err != nil {
-		output.Warning("could not clear checkout cache: %v", err)
+	// hits the Britive API instead of trusting stale state. Console
+	// checkouts never write that cache.
+	if !console {
+		if err := config.DeleteCheckoutState(match.Alias); err != nil {
+			output.Warning("could not clear checkout cache: %v", err)
+		}
 	}
 
 	spin.Success(fmt.Sprintf("Checked in %s successfully", match.Alias))
@@ -148,7 +170,7 @@ func runCheckinAll(ctx context.Context) error {
 			continue
 		}
 
-		if alias := aliasByProfileID[s.PapID]; alias != "" {
+		if alias := aliasByProfileID[s.PapID]; alias != "" && !s.HasAccessType(britive.AccessTypeConsole) {
 			if err := config.DeleteCheckoutState(alias); err != nil {
 				output.Warning("could not clear checkout cache for %s: %v", alias, err)
 			}

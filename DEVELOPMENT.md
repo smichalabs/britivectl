@@ -19,6 +19,7 @@ britivectl/
 ├── cmd/                     # One file per cobra command
 │   ├── root.go              # Root command, persistent flags, command picker
 │   ├── checkout.go          # bctl checkout (orchestrator, skip-if-fresh, EKS)
+│   ├── checkout_console.go  # bctl checkout --console (web console sign-in)
 │   ├── checkin.go           # bctl checkin
 │   ├── status.go            # bctl status
 │   ├── profiles.go          # bctl profiles list|sync

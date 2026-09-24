@@ -86,6 +86,7 @@ bctl checkout admin-prod        # substring match works too
 - **Automatic browser re-auth** -- when the Britive session JWT expires, the next bctl command opens your browser for SSO automatically. You do not run `bctl login` separately. The browser flow itself is the same as a normal sign-in (one click if your IdP session is still alive, full SSO if not).
 - **Credential caching** -- repeat checkouts of the same profile skip the Britive API entirely if the credentials still have life. Pass `--force` to override.
 - **EKS in one step** -- `bctl checkout <profile> --eks` checks out credentials and updates kubeconfig for every cluster on the profile
+- **Console access** -- `bctl checkout <profile> --console` opens the cloud provider's web console in your browser
 - **Output formats** -- `awscreds` (default), `env`, `process` (AWS credential_process), `json`
 - **In-CLI issue filing** -- `bctl issue bug` and `bctl issue feature` open pre-filled GitHub issues in your browser
 - **Supply chain security** -- every release ships with CycloneDX SBOMs and cosign keyless signatures

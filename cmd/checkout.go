@@ -37,6 +37,8 @@ func newCheckoutCmd() *cobra.Command {
 		eksRegion  string
 		force      bool
 		outputFmt  string
+		console    bool
+		printURL   bool
 	)
 
 	cmd := &cobra.Command{
@@ -67,15 +69,33 @@ Output formats (--output / -o):
   awscreds  Write to ~/.aws/credentials (default for AWS profiles)
   json      Print JSON to stdout
   env       Print export VAR=value lines for shell eval
-  process   Print AWS credential_process JSON`,
+  process   Print AWS credential_process JSON
+
+Console access (--console):
+  Passing --console checks out the profile for web console access instead
+  of programmatic credentials and opens the cloud provider's console in
+  your default browser. Nothing is written to ~/.aws/credentials. Pass
+  --print-url to print the sign-in URL instead of opening a browser.
+  Console access works for any cloud the profile grants console access to.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if eksCluster != "" {
-				eks = true
-			}
 			query := ""
 			if len(args) == 1 {
 				query = args[0]
+			}
+			if printURL {
+				console = true
+			}
+			if console {
+				for _, name := range []string{"eks", "cluster", "region", "force", "output"} {
+					if cmd.Flags().Changed(name) {
+						return fmt.Errorf("--%s cannot be combined with --console", name)
+					}
+				}
+				return runConsoleCheckout(cmd.Context(), query, printURL)
+			}
+			if eksCluster != "" {
+				eks = true
 			}
 			err := runCheckout(cmd.Context(), query, eks, eksCluster, eksRegion, force, outputFmt)
 			if errors.Is(err, errUnsupportedCloud) {
@@ -90,6 +110,8 @@ Output formats (--output / -o):
 	cmd.Flags().StringVar(&eksRegion, "region", "", "AWS region for EKS operations (overrides profile/config default)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "refresh credentials even if existing ones are still valid")
 	cmd.Flags().StringVarP(&outputFmt, "output", "o", "", "output format: awscreds|json|env|process")
+	cmd.Flags().BoolVar(&console, "console", false, "check out web console access and open it in the browser")
+	cmd.Flags().BoolVar(&printURL, "print-url", false, "print the console sign-in URL instead of opening a browser (implies --console)")
 	return cmd
 }
 
@@ -169,7 +191,7 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 	// Britive returns HTTP 400 "already checked out" and the user sees a
 	// confusing error for what should be a success.
 	if !force {
-		existing, err := findActiveSession(ctx, client, match.Profile.ProfileID)
+		existing, err := findActiveSession(ctx, client, match.Profile.ProfileID, britive.AccessTypeProgrammatic)
 		switch {
 		case err == nil:
 			return reuseExistingSession(ctx, client, ready.Tenant, match, existing, eks, outFmt)
@@ -217,17 +239,19 @@ func runCheckout(ctx context.Context, query string, eks bool, eksCluster, eksReg
 var errNoActiveSession = errors.New("no active session for profile")
 
 // findActiveSession returns the active Britive session for the given profile
-// ID. Returns errNoActiveSession (wrapped via errors.Is) if the user has no
-// active checkout for this profile, or the API error if MySessions failed.
-// Never returns (nil, nil) so callers always have a definite signal.
-func findActiveSession(ctx context.Context, client *britive.Client, profileID string) (*britive.CheckedOutProfile, error) {
+// ID and access type (britive.AccessTypeProgrammatic or
+// britive.AccessTypeConsole). Returns errNoActiveSession (wrapped via
+// errors.Is) if the user has no matching active checkout, or the API error if
+// MySessions failed. Never returns (nil, nil) so callers always have a
+// definite signal.
+func findActiveSession(ctx context.Context, client *britive.Client, profileID, accessType string) (*britive.CheckedOutProfile, error) {
 	sessions, err := client.MySessions(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for i := range sessions {
 		s := &sessions[i]
-		if s.CheckedIn == nil && s.PapID == profileID {
+		if s.CheckedIn == nil && s.PapID == profileID && s.HasAccessType(accessType) {
 			return s, nil
 		}
 	}
