@@ -27,6 +27,7 @@ bctl is a single binary that handles the full developer loop for Britive JIT acc
 
 - **AWS credentials**, written automatically. Fuzzy-search your Britive profiles, pick one, and bctl writes the access key, secret, and session token straight to `~/.aws/credentials` under the right profile name. `aws s3 ls --profile aws-admin-prod` works immediately. No copy-paste, no `aws configure`.
 - **EKS kubeconfig, in the same command.** `bctl checkout admin-prod --eks` checks out the AWS credentials *and* runs `aws eks update-kubeconfig` for every cluster on the profile, so `kubectl get pods` works without a second step. If your AWS account does not allow listing clusters, pass `--cluster <name>` explicitly. This is the part the Britive web UI and pybritive leave to you.
+- **Web console, one command.** `bctl checkout admin-prod --console` checks out console access and opens the cloud provider's web console in your browser, already signed in. See [Console Access](console.md).
 - **Auto re-auth on session expiry.** When the Britive session JWT expires, the next `bctl checkout` opens your browser for SSO automatically and finishes the original command. No separate `bctl login` step to remember.
 - **Skip-if-fresh credential cache.** Re-checking out a profile that still has time left is instant and skips the Britive API entirely. Pass `--force` to override.
 
@@ -86,9 +87,9 @@ The first run on a new machine prompts you once for your Britive tenant and open
 
 | Cloud | Status |
 |---|---|
-| AWS   | Fully supported. Credentials written to `~/.aws/credentials`. |
-| GCP   | Profiles browsable today. Credential injection on the roadmap. |
-| Azure | Profiles browsable today. Credential injection on the roadmap. |
+| AWS   | Fully supported. Credentials written to `~/.aws/credentials`. Console access with `--console`. |
+| GCP   | Profiles browsable and console access with `--console`. Credential injection on the roadmap. |
+| Azure | Profiles browsable and console access with `--console`. Credential injection on the roadmap. |
 
 ## Documentation
 
@@ -97,5 +98,6 @@ The first run on a new machine prompts you once for your Britive tenant and open
 - [Configuration](configuration.md) -- config file and environment variables
 - [Commands](commands/checkout.md) -- full reference for every subcommand
 - [EKS Guide](eks.md) -- using bctl with Amazon EKS
+- [Console Access](console.md) -- opening the cloud web console from bctl
 - [Comparison](comparison.md) -- bctl vs the Britive web UI vs pybritive
 - [Feedback & issues](feedback.md) -- how to file a bug or feature request with `bctl issue`

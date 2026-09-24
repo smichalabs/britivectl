@@ -79,6 +79,7 @@ bctl checkout dev --print-url
 
 ## See also
 
+- [Console Access](../console.md)
 - [bctl checkin](checkin.md)
 - [bctl profiles](profiles.md)
 - [bctl status](status.md)

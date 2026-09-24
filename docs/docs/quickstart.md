@@ -38,6 +38,14 @@ aws s3 ls
 
 The `-o env` output mode prints `export VAR=value` lines instead of writing to `~/.aws/credentials`. Useful for one-off shell sessions, scripts, or CI.
 
+### Open the cloud console
+
+```bash
+bctl checkout aws-admin-prod --console
+```
+
+bctl checks out console access and opens the cloud provider's web console in your browser, already signed in. Use `--print-url` to print the sign-in URL instead. See [Console Access](console.md) for details.
+
 ### Use as an AWS credential_process
 
 Add this to `~/.aws/config`:
@@ -52,5 +60,6 @@ Now `aws --profile aws-admin-prod ...` invokes bctl transparently whenever crede
 ## Next
 
 - [Sessions & caching](sessions.md) explains how bctl re-triggers SSO automatically when your Britive session expires and skips redundant Britive API calls when credentials are still fresh
+- [Console Access](console.md) covers opening the cloud web console from bctl
 - [Commands](commands/checkout.md) is the full reference for every subcommand
 - [Configuration](configuration.md) covers the config file and environment variables

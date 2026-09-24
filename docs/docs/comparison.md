@@ -12,6 +12,7 @@ The big difference: **bctl handles the boilerplate that the other two leave to y
 | Find a profile | menu drill-down | type the exact full Britive path | fuzzy match on alias |
 | Write to `~/.aws/credentials` | manual copy and paste | requires `-m integrate` flag | automatic, every time |
 | Update kubeconfig for EKS | run `aws eks update-kubeconfig` after | run `aws eks update-kubeconfig` after | `--eks` in the same command |
+| Open the cloud console | click Console in UI | `pybritive checkout "..." --console` | `bctl checkout admin-prod --console` |
 | Repeat checkout (still fresh) | full clickfest again | full API call again | instant, cached |
 | Time remaining | not shown | not shown | `bctl status` |
 | Release | click Checkin in UI | `pybritive checkin "..."` | `bctl checkin admin-prod` |

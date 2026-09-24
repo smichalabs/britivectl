@@ -38,5 +38,6 @@ bctl checkin --all
 
 ## See also
 
+- [Console Access](../console.md)
 - [bctl checkout](checkout.md)
 - [bctl status](status.md)

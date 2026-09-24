@@ -49,6 +49,7 @@ nav:
       - doctor: commands/doctor.md
       - issue: commands/issue.md
   - EKS Guide: eks.md
+  - Console Access: console.md
   - Comparison: comparison.md
   - Security: security.md
   - Feedback & issues: feedback.md

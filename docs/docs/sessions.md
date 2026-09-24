@@ -100,6 +100,10 @@ This is why `eval "$(bctl checkout aws-admin-prod -o env)"` always feels slightl
 
 `bctl checkin <alias>` returns the checkout to Britive **and** removes the local state file. The next checkout will be a full Britive call, as expected.
 
+### Console checkouts
+
+`bctl checkout <alias> --console` does not read or write the local state file, since there are no local credentials to cache. Instead, bctl asks Britive whether a console checkout of the profile is already active and reuses it if so. `bctl checkin <alias> --console` returns it. See [Console Access](console.md).
+
 `bctl logout` removes the session JWT but **does not** wipe the per-profile cache files. If you want to start completely clean:
 
 ```bash

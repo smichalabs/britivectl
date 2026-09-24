@@ -45,6 +45,7 @@ The following are out of scope:
 | Where are my Britive tokens stored? | macOS Keychain, Windows Credential Manager, libsecret / KWallet on Linux desktop, encrypted file fallback on headless Linux / WSL | `internal/config/keychain.go` -- uses `99designs/keyring` |
 | Does it need elevated privileges? | No. Runs as the invoking user. Writes only to `~/.aws/credentials` and `~/.kube/config`, which the user already owns. | `ls -la ~/.aws/credentials ~/.kube/config` after a checkout shows your user as owner |
 | What about supply chain (deps)? | `go.mod` and `go.sum` are committed and pinned. `govulncheck` runs on every PR and blocks merges on known CVEs in any transitive dep. | `cat go.mod` and the Security check on any recent PR |
+| What about console sign-in URLs? | `bctl checkout --console` opens the Britive-issued sign-in URL in your browser. It is never written to disk, is only printed when the browser cannot be opened or `--print-url` is passed, and must be an absolute `https` URL before bctl hands it to the OS. | `internal/britive/checkout.go` (`GetConsoleURL`) and `cmd/checkout_console.go` |
 | What about my IdP password? | bctl never sees it. Britive's official browser SSO flow handles authentication; bctl only receives the resulting JWT. | `internal/britive/auth.go` -- the only flow is browser redirect + callback |
 
 ### Honest limitations
